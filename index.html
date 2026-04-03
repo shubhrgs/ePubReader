@@ -42,7 +42,7 @@ html, body {
   background: #f0f2f5;
 }
 
-/* ---------- COLLAPSIBLE HEADER with enhanced safe-area top padding ---------- */
+/* ---------- COLLAPSIBLE HEADER with horizontal scroll ---------- */
 #headerWrap {
   flex-shrink: 0;
   overflow: hidden;
@@ -51,15 +51,13 @@ html, body {
   opacity: 1;
   z-index: 500;
   will-change: max-height, opacity;
-  /* ensure header area respects dynamic island / camera notch */
-  padding-top: env(safe-area-inset-top, 0px);
+  /* safe area top is applied inside header */
   background: transparent;
 }
 #headerWrap.hidden {
   max-height: 0;
   opacity: 0;
   pointer-events: none;
-  padding-top: 0;
 }
 
 #headerPill {
@@ -87,21 +85,34 @@ html, body {
   opacity: 1;
 }
 
+/* Header with horizontal scrolling, no extra padding on items */
 header {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 8px;
   align-items: center;
-  justify-content: center;
-  padding: 6px 12px;
-  /* Critical fix: extra safe area top so notch/camera doesn't clip */
-  padding-top: max(12px, env(safe-area-inset-top, 12px));
+  padding: 10px 12px;
+  /* safe area top only on container, not on each button */
+  padding-top: max(10px, env(safe-area-inset-top, 10px));
   padding-bottom: 10px;
   background: white;
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   z-index: 501;
-  touch-action: manipulation;
-  border-bottom: 1px solid #eef2ff;
+  touch-action: pan-x pinch-zoom;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+header::-webkit-scrollbar {
+  height: 3px;
+}
+header::-webkit-scrollbar-track {
+  background: #e2e8f0;
+}
+header::-webkit-scrollbar-thumb {
+  background: #2563eb;
+  border-radius: 10px;
 }
 
 button, label.btn {
@@ -120,6 +131,7 @@ button, label.btn {
   min-width: 44px;
   transition: 0.1s linear;
   touch-action: manipulation;
+  flex-shrink: 0;
 }
 button:active, label.btn:active { transform: scale(0.96); background: #1d4ed8; }
 button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
@@ -132,6 +144,7 @@ select, #searchInput {
   min-height: 44px;
   outline: none;
   touch-action: manipulation;
+  flex-shrink: 0;
 }
 #searchInput { width: 150px; }
 #fileInput { display: none; }
@@ -143,6 +156,8 @@ select, #searchInput {
   font-weight: 600;
   user-select: text;
   -webkit-user-select: text;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 #progressBarContainer {
@@ -478,9 +493,9 @@ body.sepia .result-item { background: #fff4e4; border-color: #e2c8a0; }
 body.sepia .toc-row:active { background: #f3e5c9; }
 
 @media (max-width: 560px) {
-  header { gap: 4px; padding: 6px 8px; padding-top: max(12px, env(safe-area-inset-top, 12px)); }
-  button, label.btn { padding: 5px 8px; font-size: 12px; min-height: 40px; }
-  #searchInput { width: 110px; font-size: 13px; }
+  header { gap: 6px; padding: 8px 12px; padding-top: max(8px, env(safe-area-inset-top, 8px)); }
+  button, label.btn { padding: 6px 10px; font-size: 12px; min-height: 40px; }
+  #searchInput { width: 120px; font-size: 13px; }
 }
 </style>
 </head>
@@ -562,7 +577,7 @@ let currentBookKey = '';
 let headerVisible = true;
 let lastSwipeTime = 0;
 let bookLoaded = false;
-let currentContentWindow = null; // for dictionary selection
+let currentContentWindow = null;
 
 // ---------- Utilities ----------
 function showToast(msg, duration = 2600) {
@@ -629,14 +644,14 @@ function setTheme(theme) {
 $('themeSelect').onchange = e => setTheme(e.target.value);
 setTheme(currentTheme);
 
-// ---------- SWIPE & TAP (FIXED for PWA, enhanced header toggle) ----------
+// ---------- SWIPE & TAP (enhanced for reliable page turns and header toggle) ----------
 function setupGestures() {
   if (!rendition) return;
   
   rendition.hooks.content.register((contents) => {
     const doc = contents.document;
-    if (!doc || doc.__epubSwanGestures) return;
-    doc.__epubSwanGestures = true;
+    if (!doc || doc.__ebookSwanGestures) return;
+    doc.__ebookSwanGestures = true;
     
     let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
     let isVerticalSwipe = false;
@@ -681,11 +696,11 @@ function setupGestures() {
       const absDx = Math.abs(dx);
       const absDy = Math.abs(dy);
       
-      // Horizontal swipe for page turn (robust for iOS/Android)
-      if (!isVerticalSwipe && dt < 400 && absDx > 55 && absDx > absDy * 1.3) {
+      // Horizontal swipe for page turn (lower threshold for better response)
+      if (!isVerticalSwipe && dt < 400 && absDx > 40 && absDx > absDy * 1.2) {
         e.preventDefault();
         const now = Date.now();
-        if (now - lastSwipeTime < 300) return;
+        if (now - lastSwipeTime < 280) return;
         lastSwipeTime = now;
         
         if (dx < 0) {
@@ -698,10 +713,10 @@ function setupGestures() {
         return;
       }
       
-      // Tap to toggle header (touch on main text body) - no conflict with interactive elements
+      // Tap to toggle header (quick tap on text area, ignore interactive elements)
       if (dt < 250 && absDx < 20 && absDy < 20 && !isVerticalSwipe) {
         const targetTag = e.target?.tagName?.toUpperCase();
-        // Do not toggle if tapping on links, buttons, inputs or interactive elements
+        // Do not toggle if tapping on links, buttons, inputs, or selectable interactive elements
         if (!['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'].includes(targetTag)) {
           e.preventDefault();
           toggleHeader();
@@ -859,7 +874,7 @@ async function doSearch() {
   }
 }
 
-// ---------- DICTIONARY (selection from book) ----------
+// ---------- DICTIONARY ----------
 async function lookupWord(word) {
   if (!word || word.length < 2) return null;
   const cleanWord = word.replace(/[^\w'-]/g, '').toLowerCase();
@@ -997,7 +1012,7 @@ async function loadEpubFile(file) {
     updateBookmarkPanel();
     bookLoaded = true;
     hideLoading();
-    showToast('✅ Book ready! Swipe ← →, tap to toggle menu');
+    showToast('✅ eBookSwan ready! Swipe ← →, tap text to toggle menu');
   } catch(err) { hideLoading(); showToast('❌ Failed: ' + (err.message || 'Unknown')); }
 }
 $('fileInput').addEventListener('change', async (e) => { if (e.target.files[0]) { await loadEpubFile(e.target.files[0]); e.target.value = ''; } });
@@ -1008,9 +1023,23 @@ window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); defe
 $('installBtn')?.addEventListener('click', async () => { if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; if (outcome === 'accepted') showToast('✅ Installed!'); $('installBtn').style.display = 'none'; deferredPrompt = null; } });
 
 $('tocBtn').onclick = () => { buildTOC(); openPanel('tocPanel'); };
-window.addEventListener('resize', () => { if (rendition) setTimeout(() => rendition.resize(), 100); });
+
+// Fix rotation & resize: re-apply theme, resize rendition, and re-trigger header layout
+window.addEventListener('resize', () => { 
+  if (rendition) {
+    setTimeout(() => {
+      rendition.resize();
+      if (currentTheme) rendition.themes.select(currentTheme);
+      rendition.themes.fontSize(currentFont + '%');
+    }, 50);
+  }
+  // ensure header interactive after orientation change
+  setTimeout(() => {
+    if (headerWrap && headerVisible) headerWrap.classList.remove('hidden');
+  }, 100);
+});
 hideLoading();
-showToast('✨ epubSwan ready — swipe pages, tap to toggle menu');
+showToast('✨ eBookSwan ready — swipe pages, tap text to toggle menu');
 if (!localStorage.getItem('epub-hint-shown')) { setTimeout(() => showToast('💡 Tip: long-press a word, then tap "Define"'), 3500); localStorage.setItem('epub-hint-shown', 'true'); }
 </script>
 </body>
