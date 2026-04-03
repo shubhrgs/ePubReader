@@ -1,763 +1,1299 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-<title>epubSwan™ · Touch Reader</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>epubSwan™</title>
 
-<!-- PWA & Home screen -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="152x152" href="icon-192.png">
 
-<!-- Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
 
 <style>
-* {
-    user-select: none; /* improves touch feel, but text selection still works via epubjs */
-    -webkit-tap-highlight-color: transparent;
+/* ── Reset & Base ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f0f2f5;
+  color: #1a1a2e;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior: none;
 }
 
-body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: #f4f4f4;
-    transition: background 0.2s, color 0.2s;
-    overflow: hidden;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
+/* ── App Shell ──────────────────────────────────────────────── */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  height: 100vh; /* fallback */
+  position: relative;
 }
 
-/* ===== HIDEABLE TOP BAR (HEADER + PROGRESS) ===== */
-.top-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 200;
-    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-    transform: translateY(0);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+/* ── Header Wrapper (animates open/closed) ───────────────────── */
+#headerWrap {
+  flex-shrink: 0;
+  overflow: hidden;
+  max-height: 160px;
+  transition: max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.28s ease;
+  opacity: 1;
+  will-change: max-height;
+}
+#headerWrap.hidden {
+  max-height: 0;
+  opacity: 0;
 }
 
-body.header-hidden .top-bar {
-    transform: translateY(-100%);
+/* Pill indicator shown when header is hidden */
+#headerPill {
+  position: fixed;
+  top: env(safe-area-inset-top, 0);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(37,99,235,0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 14px;
+  border-radius: 0 0 12px 12px;
+  z-index: 600;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+#headerWrap.hidden ~ #progressBarContainer + #viewer,
+body.hdr-hidden #headerPill { opacity: 1; }
+
+/* ── Header ─────────────────────────────────────────────────── */
+header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  padding-top: calc(8px + env(safe-area-inset-top, 0px));
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.09);
 }
 
-/* header container */
-.reader-header {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-    align-items: center;
-    padding: 10px 12px;
-    background: white;
-    backdrop-filter: blur(0px);
-    border-bottom: 1px solid rgba(0,0,0,0.05);
+/* ── Buttons & Controls ──────────────────────────────────────── */
+button, label.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 7px 11px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  min-height: 36px;
+  -webkit-appearance: none;
+  transition: background 0.15s, transform 0.1s;
+}
+button:active { transform: scale(0.95); }
+button.ghost {
+  background: transparent;
+  color: #2563eb;
+  border: 1.5px solid #2563eb;
+}
+button.danger { background: #ef4444; }
+
+select {
+  padding: 7px 10px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  min-height: 36px;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%232563eb' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 26px;
 }
 
-#progressBarContainer {
-    height: 3px;
-    background: #e2e8f0;
-    width: 100%;
-    position: relative;
+#searchInput {
+  padding: 7px 11px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  font-size: 16px; /* CRITICAL: prevents iOS zoom */
+  font-family: inherit;
+  width: 130px;
+  min-height: 36px;
+  outline: none;
+  -webkit-appearance: none;
 }
-
-#progressBar {
-    height: 100%;
-    width: 0%;
-    background: #2563eb;
-    transition: width 0.2s;
-}
-
-/* buttons & controls */
-button, label, select, input {
-    padding: 8px 14px;
-    border: none;
-    border-radius: 40px;
-    background: #2563eb;
-    color: white;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 500;
-    transition: 0.1s ease;
-    touch-action: manipulation;
-}
-
-button:active, label:active {
-    transform: scale(0.96);
-    opacity: 0.8;
-}
-
-input, select {
-    background: white;
-    color: #1e293b;
-    border: 1px solid #cbd5e1;
-}
+#searchInput:focus { border-color: #2563eb; }
 
 #fileInput { display: none; }
 
-/* viewer takes full area */
+#pageInfo {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  letter-spacing: 0.02em;
+  padding: 2px 6px;
+  background: #f3f4f6;
+  border-radius: 20px;
+}
+
+/* ── Progress Bar ────────────────────────────────────────────── */
+#progressBarContainer {
+  height: 3px;
+  background: #e5e7eb;
+  flex-shrink: 0;
+  position: relative;
+}
+#progressBar {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #2563eb, #60a5fa);
+  transition: width 0.35s ease;
+  border-radius: 0 2px 2px 0;
+}
+
+/* ── Viewer ──────────────────────────────────────────────────── */
 #viewer {
-    flex: 1;
-    position: relative;
-    height: 100vh;
-    width: 100%;
-    background: #fff;
-    touch-action: pan-y pinch-zoom; /* allows vertical scroll but swipe detection overridden */
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  background: inherit;
 }
 
-/* PANELS (TOC + BOOKMARKS) */
+/* ── Panel Overlay ───────────────────────────────────────────── */
+#panelOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+#panelOverlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── Slide Panels ────────────────────────────────────────────── */
 .panel {
-    position: fixed;
-    top: 0;
-    left: -380px;
-    width: 85%;
-    max-width: 360px;
-    height: 100%;
-    background: white;
-    box-shadow: 4px 0 30px rgba(0,0,0,0.2);
-    transition: left 0.25s ease-out;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    font-size: 16px;
+  position: fixed;
+  top: 0;
+  left: -105%;
+  width: min(320px, 88vw);
+  height: 100%;
+  height: 100dvh;
+  background: #fff;
+  box-shadow: 6px 0 30px rgba(0,0,0,0.2);
+  transition: left 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
 }
-
 .panel.open { left: 0; }
 
 .panelHeader {
-    padding: 18px 16px;
-    background: #2563eb;
-    color: white;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: 600;
-    font-size: 18px;
+  padding: 14px 14px;
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  background: #2563eb;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.panelHeader button {
+  background: rgba(255,255,255,0.2);
+  padding: 5px 12px;
+  font-size: 15px;
+  min-height: auto;
+  border-radius: 6px;
 }
 
 .panelContent {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px 8px;
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 8px 6px;
 }
 
-/* nested TOC styles */
-.toc-item {
-    margin: 4px 0;
-    cursor: pointer;
-    border-radius: 12px;
-    transition: background 0.1s;
-}
+/* ── TOC Items ───────────────────────────────────────────────── */
 .toc-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 8px;
-    gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
 }
-.toc-title {
-    flex: 1;
-    font-size: 15px;
-    font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.toc-row:active { background: #eff6ff; }
+.toc-label {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #1f2937;
+  cursor: pointer;
+  word-break: break-word;
 }
-.toc-toggle {
-    background: transparent;
-    color: #2563eb;
-    font-size: 18px;
-    padding: 4px 8px;
-    min-width: 36px;
+.toc-expand-btn {
+  flex-shrink: 0;
+  background: none !important;
+  color: #2563eb !important;
+  border: 1.5px solid #2563eb !important;
+  padding: 2px 7px !important;
+  font-size: 10px !important;
+  min-height: auto !important;
+  border-radius: 4px !important;
+  transform: none !important;
+  line-height: 1.4;
 }
 .toc-children {
-    margin-left: 20px;
-    border-left: 2px dashed #cbd5e1;
-    display: none;
+  display: none;
+  border-left: 2px solid #dbeafe;
+  margin-left: 12px;
 }
 .toc-children.open { display: block; }
+.toc-children .toc-label { font-size: 13px; color: #374151; }
 
-/* bookmark items */
-.bookmark-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px;
-    border-bottom: 1px solid #eef2ff;
-    border-radius: 12px;
-    margin: 4px 0;
-    background: #f8fafc;
+/* ── Bookmark Items ──────────────────────────────────────────── */
+.bm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  transition: background 0.15s;
+  border-bottom: 1px solid #f3f4f6;
+}
+.bm-row:active { background: #eff6ff; }
+.bm-label {
+  flex: 1;
+  cursor: pointer;
+  font-size: 14px;
+  color: #1f2937;
+}
+.bm-del {
+  background: #fef2f2 !important;
+  color: #ef4444 !important;
+  border: 1.5px solid #fca5a5 !important;
+  padding: 4px 10px !important;
+  font-size: 12px !important;
+  min-height: auto !important;
+  border-radius: 6px !important;
 }
 
-/* search results floating panel */
+/* ── Search Results Panel ────────────────────────────────────── */
 #searchResults {
-    position: fixed;
-    bottom: 20px;
-    left: 12px;
-    right: 12px;
-    max-height: 55vh;
-    background: white;
-    border-radius: 24px;
-    box-shadow: 0 12px 28px rgba(0,0,0,0.3);
-    z-index: 1100;
-    display: none;
-    flex-direction: column;
-    overflow: hidden;
-    backdrop-filter: blur(4px);
-    border: 1px solid rgba(0,0,0,0.08);
+  position: fixed;
+  inset: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 50px rgba(0,0,0,0.28);
+  display: none;
+  flex-direction: column;
+  z-index: 2000;
+  overflow: hidden;
 }
+#searchResults.visible { display: flex; }
+
 .searchHeader {
-    display: flex;
-    justify-content: space-between;
-    padding: 16px;
-    font-weight: bold;
-    background: #2563eb;
-    color: white;
-    font-size: 16px;
+  padding: 13px 14px;
+  background: #2563eb;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  flex-shrink: 0;
 }
-.resultItem {
-    padding: 14px 16px;
-    border-bottom: 1px solid #e2e8f0;
-    cursor: pointer;
-    transition: 0.05s linear;
-    font-size: 14px;
-}
-.resultItem:active { background: #dbeafe; }
-
-/* dictionary popup */
-#popup {
-    position: fixed;
-    bottom: 30px;
-    left: 16px;
-    right: 16px;
-    background: white;
-    padding: 20px;
-    border-radius: 28px;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.3);
-    display: none;
-    z-index: 1200;
-    font-size: 15px;
-    line-height: 1.4;
+.searchHeader button {
+  background: rgba(255,255,255,0.2);
+  padding: 4px 12px;
+  font-size: 16px;
+  min-height: auto;
 }
 
-/* DARK MODE adjustments */
-body.darkUI {
-    background: #121212;
-}
-body.darkUI .top-bar .reader-header {
-    background: #1e1e2f;
-    border-bottom-color: #2d2d3a;
-}
-body.darkUI .panel {
-    background: #1e1e2f;
-    color: #e2e8f0;
-}
-body.darkUI .toc-children {
-    border-left-color: #3b3b4f;
-}
-body.darkUI .bookmark-item {
-    background: #2a2a3a;
-}
-body.darkUI .resultItem {
-    border-bottom-color: #2d2d3a;
-}
-body.darkUI .resultItem:active { background: #2d3a5e; }
-
-/* swipe hint (optional) */
-.swipe-hint {
-    position: fixed;
-    bottom: 20px;
-    right: 16px;
-    background: rgba(0,0,0,0.5);
-    color: white;
-    font-size: 11px;
-    padding: 6px 10px;
-    border-radius: 30px;
-    pointer-events: none;
-    z-index: 90;
-    backdrop-filter: blur(4px);
-    opacity: 0.6;
+#searchList {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 8px;
 }
 
-@media (max-width: 640px) {
-    button, label, select, input { padding: 6px 12px; font-size: 12px; }
-    .reader-header { gap: 6px; }
-    .toc-title { font-size: 14px; }
+.result-item {
+  padding: 11px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-bottom: 4px;
+  border: 1.5px solid #f0f2f5;
+  transition: background 0.15s, border-color 0.15s;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.result-item:active { background: #eff6ff; border-color: #bfdbfe; }
+.result-num {
+  font-size: 10px;
+  font-weight: 700;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+.result-excerpt {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #4b5563;
+}
+.result-excerpt mark {
+  background: #fef08a;
+  border-radius: 2px;
+  padding: 0 1px;
+  color: inherit;
+  font-weight: 600;
+}
+
+/* ── Dictionary Bottom Sheet ─────────────────────────────────── */
+#dictPopup {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.22);
+  padding: 6px 20px 20px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 3000;
+  transform: translateY(100%);
+  transition: transform 0.36s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 65vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+#dictPopup.open { transform: translateY(0); }
+.dict-handle {
+  width: 36px;
+  height: 4px;
+  background: #d1d5db;
+  border-radius: 2px;
+  margin: 10px auto 16px;
+}
+.dict-word {
+  font-size: 24px;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 2px;
+}
+.dict-phonetic {
+  font-size: 14px;
+  color: #2563eb;
+  margin-bottom: 14px;
+}
+.dict-pos {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #2563eb;
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+.dict-def {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+  margin-bottom: 4px;
+}
+.dict-example {
+  font-size: 13px;
+  color: #9ca3af;
+  font-style: italic;
+  margin-bottom: 6px;
+  padding-left: 10px;
+  border-left: 2px solid #e5e7eb;
+}
+
+/* ── Toast Notification ──────────────────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(17,24,39,0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 22px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: 85vw;
+  text-align: center;
+  transition: opacity 0.28s, transform 0.28s;
+}
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── Swipe Flash Arrows ──────────────────────────────────────── */
+.swipe-arrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(37,99,235,0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  padding: 14px 10px;
+  z-index: 800;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+#arrowLeft  { left: 0;  border-radius: 0 10px 10px 0; }
+#arrowRight { right: 0; border-radius: 10px 0 0 10px; }
+
+/* ── Loading Overlay ─────────────────────────────────────────── */
+#loadingOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  z-index: 5000;
+  color: #2563eb;
+  font-size: 15px;
+  font-weight: 600;
+}
+#loadingOverlay.visible { display: flex; }
+.spinner {
+  width: 42px;
+  height: 42px;
+  border: 4px solid #dbeafe;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Dark Theme ──────────────────────────────────────────────── */
+body.dark {
+  background: #0f1117;
+  color: #e5e7eb;
+}
+body.dark header          { background: #1a1d2e; box-shadow: 0 2px 12px rgba(0,0,0,0.4); }
+body.dark select          { background: #1a1d2e; color: #e5e7eb; border-color: #374151; }
+body.dark #searchInput    { background: #1a1d2e; color: #e5e7eb; border-color: #374151; }
+body.dark #pageInfo       { background: #1a1d2e; color: #9ca3af; }
+body.dark .panel          { background: #1a1d2e; color: #e5e7eb; }
+body.dark .panelContent   { color: #e5e7eb; }
+body.dark .toc-label      { color: #d1d5db; }
+body.dark .toc-row:active { background: #2a2d3e; }
+body.dark .toc-children   { border-color: #374151; }
+body.dark #searchResults  { background: #1a1d2e; color: #e5e7eb; }
+body.dark .result-item    { background: #1f2233; border-color: #2d3148; }
+body.dark .result-item:active { background: #2a2d3e; }
+body.dark .result-excerpt { color: #9ca3af; }
+body.dark .bm-row         { border-color: #2d3148; }
+body.dark .bm-label       { color: #d1d5db; }
+body.dark #dictPopup      { background: #1a1d2e; }
+body.dark .dict-word      { color: #f3f4f6; }
+body.dark .dict-def       { color: #d1d5db; }
+body.dark .dict-handle    { background: #374151; }
+body.dark #progressBarContainer { background: #1f2233; }
+body.dark #loadingOverlay { background: rgba(15,17,23,0.88); color: #60a5fa; }
+
+/* ── Sepia Theme ─────────────────────────────────────────────── */
+body.sepia {
+  background: #f5edd6;
+  color: #4a3728;
+}
+body.sepia header       { background: #ede0c4; }
+body.sepia select,
+body.sepia #searchInput { background: #ede0c4; color: #4a3728; border-color: #c8b898; }
+body.sepia .panel,
+body.sepia #searchResults,
+body.sepia #dictPopup   { background: #fdf6e3; }
+body.sepia .toc-label,
+body.sepia .bm-label,
+body.sepia .dict-word   { color: #4a3728; }
+body.sepia #pageInfo    { background: #e8d9b8; color: #6b5344; }
+
+/* ── Mobile Responsive ───────────────────────────────────────── */
+@media (max-width: 480px) {
+  header      { gap: 4px; padding: 6px 8px; padding-top: calc(6px + env(safe-area-inset-top, 0px)); }
+  button      { font-size: 12px; padding: 6px 9px; }
+  #searchInput { width: 100px; }
 }
 </style>
+
 </head>
 <body>
 
-<div class="top-bar">
-    <div class="reader-header">
-        <label for="fileInput">📖 Load EPUB</label>
-        <input type="file" id="fileInput" accept=".epub">
-        <button id="prevBtn">◀ Prev</button>
-        <button id="nextBtn">Next ▶</button>
-        <button id="tocBtn">📑 TOC</button>
-        <button id="addBookmarkBtn">🔖 Add</button>
-        <button id="bookmarkPanelBtn">📋 List</button>
-        <button id="dictionaryBtn">📖 Dict</button>
-        <button id="fontPlus">A+</button>
-        <button id="fontMinus">A-</button>
-        <select id="themeSelect">
-            <option value="light">☀️ Light</option>
-            <option value="dark">🌙 Dark</option>
-            <option value="sepia">📜 Sepia</option>
-        </select>
-        <input type="text" id="searchInput" placeholder="🔍 Search...">
-        <button id="searchBtn">Go</button>
-        <span id="pageInfo"></span>
-    </div>
-    <div id="progressBarContainer"><div id="progressBar"></div></div>
+<div id="app">
+
+  <!-- ── Header (collapsible) ── -->
+
+  <div id="headerWrap">
+    <header>
+      <label class="btn" for="fileInput">📚 Open</label>
+      <input type="file" id="fileInput" accept=".epub">
+
+```
+  <button id="prev" title="Previous page">◀</button>
+  <button id="next" title="Next page">▶</button>
+
+  <button id="tocBtn">📑 TOC</button>
+  <button id="bookmarkPanelBtn">🔖 List</button>
+  <button id="addBookmarkBtn">🔖+</button>
+  <button id="dictionaryBtn">📖 Define</button>
+
+  <button id="fontMinus">A−</button>
+  <button id="fontPlus">A+</button>
+
+  <select id="themeSelect">
+    <option value="light">☀️ Light</option>
+    <option value="dark">🌙 Dark</option>
+    <option value="sepia">📜 Sepia</option>
+  </select>
+
+  <input type="text" id="searchInput" placeholder="🔍 Search…"
+         autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <button id="searchBtn">Go</button>
+
+  <span id="pageInfo">📄 —</span>
+</header>
+```
+
+  </div>
+
+  <div id="progressBarContainer"><div id="progressBar"></div></div>
+  <div id="viewer"></div>
 </div>
 
-<div id="viewer"></div>
+<!-- Tap-to-show-header pill -->
+
+<div id="headerPill">↓ Tap to show menu</div>
+
+<!-- Panel backdrop -->
+
+<div id="panelOverlay"></div>
 
 <!-- TOC Panel -->
+
 <div id="tocPanel" class="panel">
-    <div class="panelHeader"><span>📚 Table of Contents</span><button id="closeTocBtn">✕</button></div>
-    <div id="tocContent" class="panelContent"></div>
+  <div class="panelHeader">
+    <span>📑 Table of Contents</span>
+    <button onclick="closeAllPanels()">✕</button>
+  </div>
+  <div id="tocContent" class="panelContent"></div>
 </div>
 
 <!-- Bookmarks Panel -->
+
 <div id="bookmarkPanel" class="panel">
-    <div class="panelHeader"><span>🔖 Bookmarks</span><button id="closeBookmarkBtn">✕</button></div>
-    <div id="bookmarkContent" class="panelContent"></div>
+  <div class="panelHeader">
+    <span>🔖 Bookmarks</span>
+    <button onclick="closeAllPanels()">✕</button>
+  </div>
+  <div id="bookmarkContent" class="panelContent"></div>
 </div>
 
-<div id="searchResults"></div>
-<div id="popup"></div>
-<div class="swipe-hint">👈 Swipe left/right to turn pages</div>
+<!-- Search Results -->
+
+<div id="searchResults">
+  <div class="searchHeader">
+    <span id="searchCount">🔍 Results</span>
+    <button onclick="hideSearch()">✕</button>
+  </div>
+  <div id="searchList"></div>
+</div>
+
+<!-- Dictionary bottom sheet -->
+
+<div id="dictPopup">
+  <div class="dict-handle"></div>
+  <div id="dictContent"></div>
+  <button onclick="closeDictPopup()" style="margin-top:16px;width:100%;">Close</button>
+</div>
+
+<!-- Swipe flash arrows -->
+
+<div id="arrowLeft"  class="swipe-arrow">‹</div>
+<div id="arrowRight" class="swipe-arrow">›</div>
+
+<!-- Toast -->
+
+<div id="toast"></div>
+
+<!-- Loading overlay -->
+
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <span id="loadingMsg">Loading…</span>
+</div>
 
 <script>
-// ------------------- GLOBALS -------------------
+'use strict';
+
+// ── State ────────────────────────────────────────────────────────
 let book, rendition;
-let currentFontPercent = 100;
-let currentTheme = localStorage.getItem("epub-theme") || "light";
+let currentFont    = 100;
+let selectedText   = "";
 let currentBookKey = "";
-let isHeaderVisible = true;
+let headerVisible  = true;
 
-// DOM elements
-const viewerDiv = document.getElementById("viewer");
-const headerContainer = document.querySelector(".top-bar");
-const searchResultsDiv = document.getElementById("searchResults");
-const popupDiv = document.getElementById("popup");
+// Persist theme
+let currentTheme = localStorage.getItem("epub-theme") || "light";
 
-// ---------- HEADER TOGGLE (tap on reading area) ----------
-function toggleHeader() {
-    isHeaderVisible = !isHeaderVisible;
-    document.body.classList.toggle("header-hidden", !isHeaderVisible);
-}
+// ── DOM refs ─────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const headerWrap     = $("headerWrap");
+const headerPill     = $("headerPill");
+const progressBar    = $("progressBar");
+const pageInfo       = $("pageInfo");
+const panelOverlay   = $("panelOverlay");
+const toast          = $("toast");
+const loadingOverlay = $("loadingOverlay");
+const arrowLeft      = $("arrowLeft");
+const arrowRight     = $("arrowRight");
 
-// attach click inside iframe to toggle header (via content hook)
-function attachHeaderToggleToIframe() {
-    if (!rendition) return;
-    rendition.hooks.content.register((doc, win) => {
-        const body = doc.body;
-        if (!body) return;
-        // avoid double listeners
-        if (body.hasAttribute("data-swan-toggle")) return;
-        body.setAttribute("data-swan-toggle", "true");
-        body.style.cursor = "pointer";
-        body.addEventListener("click", (e) => {
-            // prevent toggling when clicking on interactive elements like links? but that's fine — intuitive.
-            e.stopPropagation();
-            toggleHeader();
-        });
-        // also enable swipe detection inside iframe (will be handled globally via touch, but extra safety)
-    });
-}
-
-// ---------- SWIPE LEFT/RIGHT (touch on viewer content) ----------
-let touchStartX = 0, touchStartY = 0;
-let touchMoved = false;
-
-function initSwipeDetection() {
-    if (!rendition) return;
-    rendition.hooks.content.register((doc, win) => {
-        const iframeBody = doc.body;
-        if (!iframeBody) return;
-        iframeBody.addEventListener("touchstart", (e) => {
-            touchStartX = e.changedTouches[0].clientX;
-            touchStartY = e.changedTouches[0].clientY;
-            touchMoved = false;
-        }, { passive: false });
-        
-        iframeBody.addEventListener("touchmove", (e) => {
-            if (!touchStartX) return;
-            const deltaX = e.changedTouches[0].clientX - touchStartX;
-            const deltaY = e.changedTouches[0].clientY - touchStartY;
-            if (Math.abs(deltaX) > 15 && Math.abs(deltaX) > Math.abs(deltaY)) {
-                touchMoved = true;
-                e.preventDefault();  // prevent vertical scroll while swiping horizontally
-            }
-        }, { passive: false });
-        
-        iframeBody.addEventListener("touchend", (e) => {
-            if (!touchStartX || !touchMoved) {
-                touchStartX = 0;
-                return;
-            }
-            const deltaX = e.changedTouches[0].clientX - touchStartX;
-            if (Math.abs(deltaX) > 50) {
-                if (deltaX > 0) {
-                    // swipe right -> previous page
-                    rendition.prev();
-                } else {
-                    // swipe left -> next page
-                    rendition.next();
-                }
-                // provide haptic-like feel (optional)
-                if (navigator.vibrate) navigator.vibrate(20);
-            }
-            touchStartX = 0;
-            touchMoved = false;
-        });
-    });
-}
-
-// ---------- THEME ENGINE ----------
-function registerThemes() {
-    if (!rendition) return;
-    rendition.themes.register("light",  { "html, body": { background: "#ffffff", color: "#1e293b" } });
-    rendition.themes.register("dark",   { "html, body": { background: "#121212", color: "#e2e8f0" } });
-    rendition.themes.register("sepia",  { "html, body": { background: "#fbf7e9", color: "#5b4636" } });
-}
-function setTheme(theme) {
-    currentTheme = theme;
-    localStorage.setItem("epub-theme", theme);
-    document.body.classList.toggle("darkUI", theme === "dark");
-    document.getElementById("themeSelect").value = theme;
-    if (rendition) rendition.themes.select(theme);
-}
-function attachThemeHook() {
-    rendition.hooks.content.register(() => { rendition.themes.select(currentTheme); });
-}
-
-// ---------- TOC with NESTED (2nd level + more) ----------
-function buildNestedTOC(navItems, level = 0) {
-    const container = document.createElement("div");
-    navItems.forEach(item => {
-        const hasChildren = item.children && item.children.length > 0;
-        const itemDiv = document.createElement("div");
-        itemDiv.className = "toc-item";
-        
-        const row = document.createElement("div");
-        row.className = "toc-row";
-        row.style.paddingLeft = `${12 + level * 16}px`;
-        
-        const titleSpan = document.createElement("span");
-        titleSpan.className = "toc-title";
-        titleSpan.innerText = item.label || "Untitled";
-        
-        const clickArea = document.createElement("div");
-        clickArea.style.flex = "1";
-        clickArea.appendChild(titleSpan);
-        clickArea.style.cursor = "pointer";
-        clickArea.onclick = (e) => {
-            e.stopPropagation();
-            if (item.href) {
-                rendition.display(item.href);
-                closeAllPanels();
-            }
-        };
-        row.appendChild(clickArea);
-        
-        if (hasChildren) {
-            const toggleBtn = document.createElement("button");
-            toggleBtn.innerText = "▼";
-            toggleBtn.className = "toc-toggle";
-            toggleBtn.style.background = "transparent";
-            toggleBtn.style.color = "#2563eb";
-            toggleBtn.style.fontSize = "14px";
-            let childrenOpen = false;
-            const childrenDiv = document.createElement("div");
-            childrenDiv.className = "toc-children";
-            const childContainer = buildNestedTOC(item.children, level + 1);
-            childrenDiv.appendChild(childContainer);
-            
-            toggleBtn.onclick = (e) => {
-                e.stopPropagation();
-                childrenOpen = !childrenOpen;
-                childrenDiv.classList.toggle("open", childrenOpen);
-                toggleBtn.innerText = childrenOpen ? "▲" : "▼";
-            };
-            row.appendChild(toggleBtn);
-            itemDiv.appendChild(row);
-            itemDiv.appendChild(childrenDiv);
-        } else {
-            itemDiv.appendChild(row);
-        }
-        container.appendChild(itemDiv);
-    });
-    return container;
-}
-
-function buildTOCFromNav() {
-    if (!book) return;
-    book.loaded.navigation.then(nav => {
-        const tocContainer = document.getElementById("tocContent");
-        tocContainer.innerHTML = "";
-        if (nav.toc && nav.toc.length) {
-            const nestedTree = buildNestedTOC(nav.toc, 0);
-            tocContainer.appendChild(nestedTree);
-        } else {
-            tocContainer.innerHTML = "<p style='padding:16px'>No table of contents.</p>";
-        }
-    }).catch(() => {
-        document.getElementById("tocContent").innerHTML = "<p>Unable to load TOC</p>";
-    });
-}
-
-// ---------- BOOKMARKS ----------
-function updateBookmarkPanel() {
-    const container = document.getElementById("bookmarkContent");
-    if (!currentBookKey) {
-        container.innerHTML = "<p>📭 Load an EPUB first.</p>";
-        return;
-    }
-    let data = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
-    if (data.length === 0) {
-        container.innerHTML = "<p>🔖 No bookmarks. Tap <strong>Add</strong> while reading.</p>";
-        return;
-    }
-    container.innerHTML = "";
-    data.forEach((cfi, idx) => {
-        const div = document.createElement("div");
-        div.className = "bookmark-item";
-        const titleSpan = document.createElement("span");
-        titleSpan.innerText = `📍 Bookmark ${idx+1}`;
-        titleSpan.style.cursor = "pointer";
-        titleSpan.style.flex = "1";
-        titleSpan.onclick = () => { rendition.display(cfi); closeAllPanels(); };
-        const delBtn = document.createElement("button");
-        delBtn.innerText = "✕";
-        delBtn.style.background = "#ef4444";
-        delBtn.style.padding = "6px 12px";
-        delBtn.onclick = (e) => {
-            e.stopPropagation();
-            let newData = data.filter(b => b !== cfi);
-            localStorage.setItem(currentBookKey, JSON.stringify(newData));
-            updateBookmarkPanel();
-            showToast("🗑️ Bookmark removed");
-        };
-        div.appendChild(titleSpan);
-        div.appendChild(delBtn);
-        container.appendChild(div);
-    });
-}
-
-function addCurrentBookmark() {
-    if (!rendition || !currentBookKey) { showToast("Load a book first"); return; }
-    const loc = rendition.currentLocation();
-    if (!loc || !loc.start) return;
-    const cfi = loc.start.cfi;
-    let bookmarks = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
-    if (!bookmarks.includes(cfi)) {
-        bookmarks.push(cfi);
-        localStorage.setItem(currentBookKey, JSON.stringify(bookmarks));
-        updateBookmarkPanel();
-        showToast("✅ Bookmark saved");
-    } else {
-        showToast("📌 Already bookmarked");
-    }
-}
-
-function deleteBookmarkByCfi(cfi) { /* used via inline but better update */ }
-
-// ---------- SEARCH (using epub.js built-in) ----------
-async function performSearch() {
-    const query = document.getElementById("searchInput").value.trim();
-    if (!query || !book) { showToast("Enter search term & load EPUB"); return; }
-    searchResultsDiv.style.display = "flex";
-    searchResultsDiv.innerHTML = `<div class="searchHeader">🔍 Results for "${escapeHtml(query)}"<button id="closeSearchBtn" style="background:none; color:white; font-size:20px;">✕</button></div><div style="padding:20px; text-align:center;">Searching ...</div>`;
-    document.getElementById("closeSearchBtn")?.addEventListener("click", () => { searchResultsDiv.style.display = "none"; });
-    
-    try {
-        const results = await book.search(query);
-        if (!results || results.length === 0) {
-            searchResultsDiv.innerHTML = `<div class="searchHeader">🔍 No matches</div><div style="padding:16px">😕 No results for "${escapeHtml(query)}"</div><button style="margin:12px auto; display:block;" onclick="document.getElementById('searchResults').style.display='none'">Close</button>`;
-            return;
-        }
-        const resultContainer = document.createElement("div");
-        results.forEach(res => {
-            const excerpt = res.excerpt || (res.text ? res.text.substring(0, 120) : "Match found");
-            const cfi = res.cfi;
-            const itemDiv = document.createElement("div");
-            itemDiv.className = "resultItem";
-            itemDiv.innerHTML = `📖 ${escapeHtml(excerpt.length > 100 ? excerpt.substring(0,100)+"…" : excerpt)}`;
-            itemDiv.onclick = () => {
-                if (cfi) {
-                    rendition.display(cfi);
-                    searchResultsDiv.style.display = "none";
-                } else {
-                    showToast("Cannot navigate to this result");
-                }
-            };
-            resultContainer.appendChild(itemDiv);
-        });
-        searchResultsDiv.innerHTML = "";
-        const header = document.createElement("div");
-        header.className = "searchHeader";
-        header.innerHTML = `🔍 ${results.length} result(s)<button id="closeSearchBtn2" style="background:none; color:white;">✕</button>`;
-        searchResultsDiv.appendChild(header);
-        searchResultsDiv.appendChild(resultContainer);
-        document.getElementById("closeSearchBtn2")?.addEventListener("click", () => { searchResultsDiv.style.display = "none"; });
-    } catch(err) {
-        console.warn(err);
-        searchResultsDiv.innerHTML = `<div class="searchHeader">⚠️ Error</div><div>Search failed. Try again.</div><button onclick="document.getElementById('searchResults').style.display='none'">Close</button>`;
-    }
-}
-
-// Helper
-function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
-
-// ---------- PROGRESS & LOCATIONS ----------
-function setupProgressAndLocation() {
-    if (!book) return;
-    book.ready.then(() => book.locations.generate(1800)).then(() => {
-        const total = book.locations.total;
-        rendition.on("relocated", (loc) => {
-            const current = book.locations.locationFromCfi(loc.start.cfi);
-            if (current && total) {
-                document.getElementById("pageInfo").innerText = `${Math.min(current, total)} / ${total}`;
-                document.getElementById("progressBar").style.width = ((current / total) * 100) + "%";
-            }
-        });
-    }).catch(e => console.log("location err", e));
-}
-
-// ---------- DICTIONARY (selection) ----------
-let selectedWord = "";
-function enableWordSelection() {
-    if (!rendition) return;
-    rendition.on("selected", (cfiRange, contents) => {
-        const selection = contents.window.getSelection();
-        if (selection && selection.toString().trim()) {
-            selectedWord = selection.toString().trim();
-        }
-    });
-}
-document.getElementById("dictionaryBtn").onclick = () => {
-    if (!selectedWord) { showToast("👆 Select a word first (tap & hold)"); return; }
-    popupDiv.style.display = "block";
-    popupDiv.innerHTML = "📖 Loading definition...";
-    fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(selectedWord)}`)
-        .then(r => r.json())
-        .then(data => {
-            if (data.title) throw new Error("not found");
-            const def = data[0]?.meanings?.[0]?.definitions?.[0]?.definition || "No definition";
-            popupDiv.innerHTML = `<b>📘 ${selectedWord}</b><br><i>${data[0]?.meanings?.[0]?.partOfSpeech || ""}</i><br><br>${def}<br><br><button style="margin-top:12px;" onclick="document.getElementById('popup').style.display='none'">Close</button>`;
-        })
-        .catch(() => {
-            popupDiv.innerHTML = `❌ No definition for "${selectedWord}".<br><br><button onclick="document.getElementById('popup').style.display='none'">Got it</button>`;
-        });
-};
-
-// Helper UI
+// ── Toast ────────────────────────────────────────────────────────
+let _toastTimer;
 function showToast(msg) {
-    popupDiv.innerHTML = `${msg}<br><button onclick="document.getElementById('popup').style.display='none'">OK</button>`;
-    popupDiv.style.display = "block";
-    setTimeout(() => { if(popupDiv.style.display !== 'none') popupDiv.style.display = 'none'; }, 2500);
+  toast.textContent = msg;
+  toast.classList.add("show");
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
+}
+
+// ── Loading ──────────────────────────────────────────────────────
+function showLoading(msg) {
+  $("loadingMsg").textContent = msg || "Loading…";
+  loadingOverlay.classList.add("visible");
+}
+function hideLoading() {
+  loadingOverlay.classList.remove("visible");
+}
+
+// ── Header toggle ────────────────────────────────────────────────
+function showHeader() {
+  headerVisible = true;
+  headerWrap.classList.remove("hidden");
+  headerPill.style.opacity = "0";
+}
+function toggleHeader() {
+  headerVisible = !headerVisible;
+  headerWrap.classList.toggle("hidden", !headerVisible);
+  // Show the pill hint when header is hidden
+  headerPill.style.opacity = headerVisible ? "0" : "1";
+}
+
+// Tap on headerPill reveals the menu
+headerPill.addEventListener("click", showHeader);
+headerPill.style.pointerEvents = "auto";
+
+// ── Panels ───────────────────────────────────────────────────────
+function openPanel(id) {
+  closeAllPanels();
+  $(id).classList.add("open");
+  panelOverlay.classList.add("visible");
+  showHeader(); // always reveal header when panel opens
 }
 function closeAllPanels() {
-    document.getElementById("tocPanel").classList.remove("open");
-    document.getElementById("bookmarkPanel").classList.remove("open");
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("open"));
+  panelOverlay.classList.remove("visible");
+}
+panelOverlay.addEventListener("click", closeAllPanels);
+
+// ── Theme ────────────────────────────────────────────────────────
+function applyBodyTheme(theme) {
+  document.body.classList.remove("dark", "sepia");
+  if (theme === "dark")  document.body.classList.add("dark");
+  if (theme === "sepia") document.body.classList.add("sepia");
+  $("themeSelect").value = theme;
 }
 
-// ---------- LOAD EPUB ----------
-document.getElementById("fileInput").addEventListener("change", async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (rendition) rendition.destroy();
-    
-    book = ePub(file);
-    rendition = book.renderTo("viewer", { width: "100%", height: "100%", allowScriptedContent: true });
-    
-    registerThemes();
-    attachThemeHook();
-    setTheme(currentTheme);
-    rendition.display();
-    
-    // essential mobile enhancements
-    attachHeaderToggleToIframe();
-    initSwipeDetection();
-    enableWordSelection();
-    setupProgressAndLocation();
-    
-    // TOC building after nav ready
-    buildTOCFromNav();
-    
-    // set bookmarks ID
-    book.ready.then(() => {
-        const id = book.package.metadata.identifier || file.name + Date.now();
-        currentBookKey = "epub-bookmarks-" + id.replace(/[^a-z0-9]/gi, '_');
-        updateBookmarkPanel();
-    });
-    
-    // font sync
-    rendition.themes.fontSize(currentFontPercent + "%");
+function registerRenditionThemes() {
+  rendition.themes.register("light", {
+    "html, body": { background: "#ffffff !important", color: "#111827 !important" }
+  });
+  rendition.themes.register("dark", {
+    "html, body": { background: "#111827 !important", color: "#e5e7eb !important" },
+    "a": { color: "#93c5fd !important" }
+  });
+  rendition.themes.register("sepia", {
+    "html, body": { background: "#fdf6e3 !important", color: "#4a3728 !important" }
+  });
+}
+
+function setTheme(theme) {
+  currentTheme = theme;
+  localStorage.setItem("epub-theme", theme);
+  applyBodyTheme(theme);
+  if (rendition) rendition.themes.select(theme);
+}
+
+$("themeSelect").onchange = e => setTheme(e.target.value);
+applyBodyTheme(currentTheme);
+
+// ── Load EPUB ────────────────────────────────────────────────────
+$("fileInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  showLoading("Opening book…");
+  showHeader();
+
+  if (rendition) {
+    try { rendition.destroy(); } catch (_) {}
+  }
+
+  book      = ePub(file);
+  rendition = book.renderTo("viewer", {
+    width: "100%",
+    height: "100%",
+    allowScriptedContent: false
+  });
+
+  registerRenditionThemes();
+  setTheme(currentTheme);
+  rendition.themes.fontSize(currentFont + "%");
+
+  // Apply theme + font + gestures on every page render
+  rendition.hooks.content.register((contents) => {
+    rendition.themes.select(currentTheme);
+    rendition.themes.fontSize(currentFont + "%");
+    injectGestures(contents);
+  });
+
+  // Word/phrase selection
+  rendition.on("selected", (cfiRange, contents) => {
+    selectedText = contents.window.getSelection().toString().trim();
+  });
+
+  try {
+    await rendition.display();
+  } catch (err) {
+    console.warn("Display error:", err);
+  }
+
+  buildTOC();
+  setupLocations();
+
+  book.ready
+    .then(() => {
+      const id = (book.package?.metadata?.identifier) || file.name;
+      currentBookKey = "epub-bm-" + id;
+      updateBookmarkPanel();
+    })
+    .catch(console.warn)
+    .finally(hideLoading);
 });
 
-// Font controls
-document.getElementById("fontPlus").onclick = () => {
-    currentFontPercent = Math.min(currentFontPercent + 10, 200);
-    if(rendition) rendition.themes.fontSize(currentFontPercent + "%");
-};
-document.getElementById("fontMinus").onclick = () => {
-    currentFontPercent = Math.max(currentFontPercent - 10, 70);
-    if(rendition) rendition.themes.fontSize(currentFontPercent + "%");
-};
+// ── Gestures — injected inside every iframe page ──────────────
+function injectGestures(contents) {
+  const doc = contents.document;
+  if (!doc) return;
 
-// Navigation
-document.getElementById("prevBtn").onclick = () => rendition && rendition.prev();
-document.getElementById("nextBtn").onclick = () => rendition && rendition.next();
+  let tx = 0, ty = 0, ts = 0;
 
-// Theme select
-document.getElementById("themeSelect").onchange = e => setTheme(e.target.value);
+  doc.addEventListener("touchstart", (e) => {
+    tx = e.touches[0].clientX;
+    ty = e.touches[0].clientY;
+    ts = Date.now();
+  }, { passive: true });
 
-// TOC panel
-document.getElementById("tocBtn").onclick = () => { document.getElementById("tocPanel").classList.toggle("open"); closeAllPanelsExcept("tocPanel"); };
-document.getElementById("closeTocBtn").onclick = () => document.getElementById("tocPanel").classList.remove("open");
+  doc.addEventListener("touchend", (e) => {
+    const dx  = e.changedTouches[0].clientX - tx;
+    const dy  = e.changedTouches[0].clientY - ty;
+    const dt  = Date.now() - ts;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
 
-// Bookmarks panel
-document.getElementById("bookmarkPanelBtn").onclick = () => { updateBookmarkPanel(); document.getElementById("bookmarkPanel").classList.toggle("open"); closeAllPanelsExcept("bookmarkPanel"); };
-document.getElementById("closeBookmarkBtn").onclick = () => document.getElementById("bookmarkPanel").classList.remove("open");
-document.getElementById("addBookmarkBtn").onclick = addCurrentBookmark;
-
-function closeAllPanelsExcept(keepId) {
-    if(keepId !== "tocPanel") document.getElementById("tocPanel").classList.remove("open");
-    if(keepId !== "bookmarkPanel") document.getElementById("bookmarkPanel").classList.remove("open");
-}
-
-// Search button
-document.getElementById("searchBtn").onclick = () => performSearch();
-
-// Close popup when tapping outside? simple: click anywhere on popup close button already.
-document.getElementById("popup").addEventListener("click", (e) => { if(e.target.tagName === "BUTTON") popupDiv.style.display = "none"; });
-
-// PWA service worker (optional)
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(e => console.log("SW skip"));
-    });
-}
-
-// initial hide header hint
-setTimeout(() => {
-    if(!localStorage.getItem("swipeHintShown")){
-        localStorage.setItem("swipeHintShown","1");
-        showToast("💡 Tap on text area to hide header • Swipe ← → to turn pages");
+    // ── Swipe left/right for page turn ──────────────────────
+    if (dt < 450 && adx > 45 && adx > ady * 1.25) {
+      if (dx < 0) {
+        flashArrow("right");
+        rendition.next();
+      } else {
+        flashArrow("left");
+        rendition.prev();
+      }
+      return;
     }
-}, 1000);
+
+    // ── Short tap: toggle header ─────────────────────────────
+    if (dt < 280 && adx < 14 && ady < 14) {
+      // Ignore taps on links/buttons
+      const tag = (e.target.tagName || "").toUpperCase();
+      if (tag === "A" || tag === "BUTTON" || tag === "INPUT") return;
+      toggleHeader();
+    }
+  }, { passive: true });
+
+  // Keyboard nav
+  doc.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowDown")  rendition.next();
+    if (e.key === "ArrowLeft"  || e.key === "ArrowUp")    rendition.prev();
+  });
+}
+
+// Outer viewer element touch (fallback for edge zones)
+(function () {
+  const viewer = $("viewer");
+  let tx = 0, ty = 0, ts = 0;
+  viewer.addEventListener("touchstart", e => {
+    tx = e.touches[0].clientX;
+    ty = e.touches[0].clientY;
+    ts = Date.now();
+  }, { passive: true });
+  viewer.addEventListener("touchend", e => {
+    const dx = e.changedTouches[0].clientX - tx;
+    const dy = e.changedTouches[0].clientY - ty;
+    const dt = Date.now() - ts;
+    if (dt < 450 && Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+      if (dx < 0) { flashArrow("right"); rendition && rendition.next(); }
+      else         { flashArrow("left");  rendition && rendition.prev(); }
+    }
+  }, { passive: true });
+})();
+
+// ── Arrow flash ──────────────────────────────────────────────────
+function flashArrow(side) {
+  const el = side === "left" ? arrowLeft : arrowRight;
+  el.style.opacity = "1";
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.opacity = "0"; }, 320);
+}
+
+// ── Prev / Next buttons ──────────────────────────────────────────
+$("prev").onclick = () => rendition && rendition.prev();
+$("next").onclick = () => rendition && rendition.next();
+
+// ── Font size ────────────────────────────────────────────────────
+$("fontPlus").onclick = () => {
+  if (!rendition) return;
+  currentFont = Math.min(currentFont + 10, 220);
+  rendition.themes.fontSize(currentFont + "%");
+  showToast(`Font ${currentFont}%`);
+};
+$("fontMinus").onclick = () => {
+  if (!rendition) return;
+  currentFont = Math.max(currentFont - 10, 70);
+  rendition.themes.fontSize(currentFont + "%");
+  showToast(`Font ${currentFont}%`);
+};
+
+// ── Progress & locations ─────────────────────────────────────────
+function setupLocations() {
+  showLoading("Building location index…");
+  book.ready
+    .then(() => book.locations.generate(1600))
+    .then(() => {
+      hideLoading();
+      const total = book.locations.total;
+      rendition.on("relocated", loc => {
+        try {
+          const cur = book.locations.locationFromCfi(loc.start.cfi);
+          if (cur != null && total) {
+            pageInfo.textContent   = `📄 ${cur} / ${total}`;
+            progressBar.style.width = ((cur / total) * 100) + "%";
+          }
+        } catch (_) {}
+      });
+    })
+    .catch(() => hideLoading());
+}
+
+// ── TOC ──────────────────────────────────────────────────────────
+$("tocBtn").onclick = () => openPanel("tocPanel");
+
+function buildTOC() {
+  book.loaded.navigation.then(nav => {
+    const container = $("tocContent");
+    container.innerHTML = "";
+    if (!nav.toc || nav.toc.length === 0) {
+      container.innerHTML = "<p style='color:#9ca3af;padding:14px'>No table of contents in this book.</p>";
+      return;
+    }
+    renderTOCItems(nav.toc, container, 0);
+  });
+}
+
+// Recursive TOC renderer — handles unlimited nesting depth
+function renderTOCItems(items, container, depth) {
+  items.forEach(item => {
+    const label      = (item.label || "").trim();
+    const hasKids    = Array.isArray(item.subitems) && item.subitems.length > 0;
+    const indent     = 8 + depth * 18;
+
+    const row = document.createElement("div");
+    row.className = "toc-row";
+    row.style.paddingLeft = indent + "px";
+
+    if (hasKids) {
+      // Expand toggle button
+      const btn = document.createElement("button");
+      btn.className  = "toc-expand-btn";
+      btn.textContent = "▶";
+      btn.title       = "Expand";
+      btn.setAttribute("aria-expanded", "false");
+
+      const lbl = document.createElement("span");
+      lbl.className   = "toc-label";
+      lbl.textContent = label;
+      lbl.title       = label;
+
+      row.appendChild(btn);
+      row.appendChild(lbl);
+      container.appendChild(row);
+
+      // Children container
+      const childWrap = document.createElement("div");
+      childWrap.className = "toc-children";
+      renderTOCItems(item.subitems, childWrap, depth + 1);
+      container.appendChild(childWrap);
+
+      // Toggle expand on button click
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const open = childWrap.classList.toggle("open");
+        btn.textContent = open ? "▼" : "▶";
+        btn.setAttribute("aria-expanded", String(open));
+      });
+
+      // Navigate on label click
+      lbl.addEventListener("click", () => {
+        if (item.href) rendition.display(item.href);
+        closeAllPanels();
+      });
+
+    } else {
+      // Leaf node
+      const lbl = document.createElement("span");
+      lbl.className   = "toc-label";
+      lbl.textContent = (depth > 0 ? "└ " : "") + label;
+      lbl.title       = label;
+
+      row.appendChild(lbl);
+      container.appendChild(row);
+
+      row.addEventListener("click", () => {
+        if (item.href) rendition.display(item.href);
+        closeAllPanels();
+      });
+    }
+  });
+}
+
+// ── Search ───────────────────────────────────────────────────────
+function hideSearch() {
+  $("searchResults").classList.remove("visible");
+}
+
+$("searchBtn").onclick = doSearch;
+$("searchInput").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
+
+async function doSearch() {
+  const query = $("searchInput").value.trim();
+  if (!query) { showToast("Enter a search term"); return; }
+  if (!book)  { showToast("Open a book first");   return; }
+
+  // Dismiss keyboard on mobile
+  $("searchInput").blur();
+
+  const resultsDiv = $("searchResults");
+  const searchList = $("searchList");
+  const searchCount = $("searchCount");
+
+  searchList.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;padding:30px;color:#9ca3af">
+      <div class="spinner" style="margin-bottom:12px"></div>
+      Searching for "<strong>${query}</strong>"…
+    </div>`;
+  resultsDiv.classList.add("visible");
+  searchCount.textContent = "🔍 Searching…";
+
+  try {
+    const results = await searchAllSpine(query);
+    renderSearchResults(results, query);
+  } catch (err) {
+    searchList.innerHTML = `<p style="padding:20px;color:#ef4444">Search error: ${err.message}</p>`;
+    searchCount.textContent = "🔍 Error";
+  }
+}
+
+// Uses epub.js built-in Section.find() for correct CFI generation
+async function searchAllSpine(query) {
+  const all = [];
+  const spineItems = book.spine.spineItems;
+
+  for (const item of spineItems) {
+    try {
+      await item.load(book.load.bind(book));
+      // epub.js Section.find(query) → [{cfi, excerpt}]
+      const found = (typeof item.find === "function") ? item.find(query) : [];
+      found.forEach(r => all.push({ cfi: r.cfi, excerpt: r.excerpt || "" }));
+    } catch (_) {
+      // Skip unloadable sections silently
+    } finally {
+      try { item.unload(); } catch (_) {}
+    }
+  }
+  return all;
+}
+
+function renderSearchResults(results, query) {
+  const searchList  = $("searchList");
+  const searchCount = $("searchCount");
+  const escaped     = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re          = new RegExp(escaped, "gi");
+
+  searchCount.textContent = results.length
+    ? `🔍 ${results.length} result${results.length !== 1 ? "s" : ""}`
+    : "🔍 No results";
+
+  searchList.innerHTML = "";
+
+  if (results.length === 0) {
+    searchList.innerHTML = `
+      <div style="text-align:center;padding:30px;color:#9ca3af">
+        😕 No results for "<strong>${query}</strong>"
+      </div>`;
+    return;
+  }
+
+  results.forEach((r, i) => {
+    const div  = document.createElement("div");
+    div.className = "result-item";
+
+    const highlighted = r.excerpt.replace(re, m =>
+      `<mark>${m}</mark>`
+    );
+
+    div.innerHTML = `
+      <div class="result-num">Result ${i + 1}</div>
+      <div class="result-excerpt">…${highlighted}…</div>`;
+
+    // Navigate — handle both click (desktop) and touchend (mobile)
+    function navigate(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!rendition) return;
+      rendition.display(r.cfi)
+        .then(() => hideSearch())
+        .catch(err => {
+          console.warn("Nav error:", err);
+          showToast("⚠️ Could not navigate to result");
+        });
+    }
+
+    div.addEventListener("click",    navigate);
+    div.addEventListener("touchend", navigate, { passive: false });
+    searchList.appendChild(div);
+  });
+}
+
+// ── Dictionary ───────────────────────────────────────────────────
+$("dictionaryBtn").onclick = async () => {
+  if (!selectedText) {
+    showToast("👆 Select a word in the book first");
+    return;
+  }
+
+  const word       = selectedText.split(/\s+/)[0];
+  const dictPopup  = $("dictPopup");
+  const dictContent = $("dictContent");
+
+  dictContent.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;padding:20px;color:#9ca3af">
+      <div class="spinner" style="margin-bottom:10px"></div>
+      Looking up "<strong>${word}</strong>"…
+    </div>`;
+  dictPopup.classList.add("open");
+
+  try {
+    const res  = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+    const data = await res.json();
+
+    if (data.title) {
+      dictContent.innerHTML = `
+        <div class="dict-word">📖 ${word}</div>
+        <p style="color:#9ca3af">No definition found for this word.</p>`;
+      return;
+    }
+
+    const entry    = data[0];
+    const phonetic = entry.phonetic || entry.phonetics?.find(p => p.text)?.text || "";
+
+    let html = `<div class="dict-word">📖 ${entry.word}</div>`;
+    if (phonetic) html += `<div class="dict-phonetic">${phonetic}</div>`;
+
+    (entry.meanings || []).slice(0, 3).forEach(m => {
+      html += `<div class="dict-pos">${m.partOfSpeech}</div>`;
+      (m.definitions || []).slice(0, 2).forEach((d, i) => {
+        html += `<div class="dict-def">${i + 1}. ${d.definition}</div>`;
+        if (d.example) {
+          html += `<div class="dict-example">"${d.example}"</div>`;
+        }
+      });
+    });
+
+    dictContent.innerHTML = html;
+  } catch (_) {
+    dictContent.innerHTML = `<p style="color:#ef4444">⚠️ Network error. Check your connection.</p>`;
+  }
+};
+
+function closeDictPopup() {
+  $("dictPopup").classList.remove("open");
+}
+// Swipe down on dict sheet to close
+(function () {
+  const sheet = $("dictPopup");
+  let sy = 0;
+  sheet.addEventListener("touchstart", e => { sy = e.touches[0].clientY; }, { passive: true });
+  sheet.addEventListener("touchend",   e => {
+    if (e.changedTouches[0].clientY - sy > 60) closeDictPopup();
+  }, { passive: true });
+})();
+
+// ── Bookmarks ────────────────────────────────────────────────────
+$("addBookmarkBtn").onclick = () => {
+  if (!rendition) { showToast("📚 Open a book first"); return; }
+  const loc = rendition.currentLocation();
+  if (!loc) { showToast("⚠️ Location not ready yet"); return; }
+
+  const cfi  = loc.start.cfi;
+  const data = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
+
+  if (!data.includes(cfi)) {
+    data.push(cfi);
+    localStorage.setItem(currentBookKey, JSON.stringify(data));
+    updateBookmarkPanel();
+    showToast("✅ Bookmark saved");
+  } else {
+    showToast("📌 Already bookmarked here");
+  }
+};
+
+$("bookmarkPanelBtn").onclick = () => {
+  updateBookmarkPanel();
+  openPanel("bookmarkPanel");
+};
+
+function updateBookmarkPanel() {
+  const content = $("bookmarkContent");
+  content.innerHTML = "";
+  const data = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
+
+  if (data.length === 0) {
+    content.innerHTML = `
+      <p style="color:#9ca3af;padding:14px;line-height:1.6">
+        No bookmarks yet.<br>
+        Tap <strong>🔖+</strong> while reading to save your position.
+      </p>`;
+    return;
+  }
+
+  data.forEach((cfi, i) => {
+    const row = document.createElement("div");
+    row.className = "bm-row";
+    row.innerHTML = `
+      <span class="bm-label">🔖 Bookmark ${i + 1}</span>
+      <button class="bm-del">✕</button>`;
+
+    row.querySelector(".bm-label").addEventListener("click", () => {
+      rendition.display(cfi);
+      closeAllPanels();
+    });
+    row.querySelector(".bm-del").addEventListener("click", e => {
+      e.stopPropagation();
+      deleteBookmark(cfi);
+    });
+    content.appendChild(row);
+  });
+}
+
+function deleteBookmark(cfi) {
+  let data = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
+  data = data.filter(b => b !== cfi);
+  localStorage.setItem(currentBookKey, JSON.stringify(data));
+  updateBookmarkPanel();
+  showToast("🗑️ Bookmark removed");
+}
+
+// ── Service Worker ────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(r  => console.log('✅ SW registered:', r.scope))
+      .catch(e => console.warn('⚠️ SW failed:', e));
+  });
+}
+
+let deferredInstallPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Could show a custom install button here
+});
 </script>
+
 </body>
 </html>
