@@ -1,6 +1,6 @@
 {
-  "name": "epubReaderPro™",
-  "short_name": "epubReader",
+  "name": "eNookSwan™",
+  "short_name": "eBookSwan",
   "description": "Read EPUB books offline with search, bookmarks, themes & dictionary",
   "start_url": "./index.html",
   "display": "standalone",
