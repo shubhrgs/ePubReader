@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -10,11 +9,12 @@
 <meta name="theme-color" content="#2563eb">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="epubSwan">
+<meta name="application-name" content="epubSwan">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-
 <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
 
 <style>
@@ -27,7 +27,7 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: #f0f2f5;
   color: #1a1a2e;
-  -webkit-tap-highlight-color: transparent;
+  -webkit-tap-highlight-color: rgba(37, 99, 235, 0.15);
   touch-action: manipulation;
   overscroll-behavior: none;
 }
@@ -37,11 +37,11 @@ html, body {
   display: flex;
   flex-direction: column;
   height: 100dvh;
-  height: 100vh; /* fallback */
+  height: 100vh;
   position: relative;
 }
 
-/* ── Header Wrapper (animates open/closed) ───────────────────── */
+/* ── Header Wrapper ─────────────────────────────────────────── */
 #headerWrap {
   flex-shrink: 0;
   overflow: hidden;
@@ -50,13 +50,14 @@ html, body {
               opacity 0.28s ease;
   opacity: 1;
   will-change: max-height;
+  z-index: 500;
 }
 #headerWrap.hidden {
   max-height: 0;
   opacity: 0;
 }
 
-/* Pill indicator shown when header is hidden */
+/* Pill indicator */
 #headerPill {
   position: fixed;
   top: env(safe-area-inset-top, 0);
@@ -71,12 +72,14 @@ html, body {
   padding: 3px 14px;
   border-radius: 0 0 12px 12px;
   z-index: 600;
-  pointer-events: none;
+  pointer-events: auto;
   opacity: 0;
   transition: opacity 0.25s;
+  cursor: pointer;
 }
 #headerWrap.hidden ~ #progressBarContainer + #viewer,
 body.hdr-hidden #headerPill { opacity: 1; }
+#headerWrap.hidden + #headerPill { opacity: 1; }
 
 /* ── Header ─────────────────────────────────────────────────── */
 header {
@@ -89,6 +92,7 @@ header {
   padding-top: calc(8px + env(safe-area-inset-top, 0px));
   background: #fff;
   box-shadow: 0 2px 12px rgba(0,0,0,0.09);
+  z-index: 501;
 }
 
 /* ── Buttons & Controls ──────────────────────────────────────── */
@@ -110,7 +114,8 @@ button, label.btn {
   -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
-  min-height: 36px;
+  min-height: 44px;
+  min-width: 44px;
   -webkit-appearance: none;
   transition: background 0.15s, transform 0.1s;
 }
@@ -128,16 +133,17 @@ select {
   border-radius: 8px;
   background: #fff;
   color: #374151;
-  font-size: 13px;
+  font-size: 16px;
   font-family: inherit;
   cursor: pointer;
-  min-height: 36px;
+  min-height: 44px;
   -webkit-appearance: none;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%232563eb' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 8px center;
   padding-right: 26px;
+  touch-action: manipulation;
 }
 
 #searchInput {
@@ -146,12 +152,13 @@ select {
   border-radius: 8px;
   background: #fff;
   color: #374151;
-  font-size: 16px; /* CRITICAL: prevents iOS zoom */
+  font-size: 16px;
   font-family: inherit;
   width: 130px;
-  min-height: 36px;
+  min-height: 44px;
   outline: none;
   -webkit-appearance: none;
+  touch-action: manipulation;
 }
 #searchInput:focus { border-color: #2563eb; }
 
@@ -165,6 +172,9 @@ select {
   padding: 2px 6px;
   background: #f3f4f6;
   border-radius: 20px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* ── Progress Bar ────────────────────────────────────────────── */
@@ -173,6 +183,7 @@ select {
   background: #e5e7eb;
   flex-shrink: 0;
   position: relative;
+  z-index: 499;
 }
 #progressBar {
   height: 100%;
@@ -189,6 +200,9 @@ select {
   overflow: hidden;
   position: relative;
   background: inherit;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: none;
+  touch-action: pan-y;
 }
 
 /* ── Panel Overlay ───────────────────────────────────────────── */
@@ -244,6 +258,7 @@ select {
   font-size: 15px;
   min-height: auto;
   border-radius: 6px;
+  min-width: auto;
 }
 
 .panelContent {
@@ -252,6 +267,7 @@ select {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   padding: 8px 6px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ── TOC Items ───────────────────────────────────────────────── */
@@ -263,6 +279,8 @@ select {
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s;
+  min-height: 44px;
+  touch-action: manipulation;
 }
 .toc-row:active { background: #eff6ff; }
 .toc-label {
@@ -272,6 +290,7 @@ select {
   color: #1f2937;
   cursor: pointer;
   word-break: break-word;
+  user-select: none;
 }
 .toc-expand-btn {
   flex-shrink: 0;
@@ -280,10 +299,15 @@ select {
   border: 1.5px solid #2563eb !important;
   padding: 2px 7px !important;
   font-size: 10px !important;
-  min-height: auto !important;
+  min-height: 28px !important;
+  min-width: 28px !important;
   border-radius: 4px !important;
   transform: none !important;
   line-height: 1.4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
 }
 .toc-children {
   display: none;
@@ -302,6 +326,8 @@ select {
   border-radius: 8px;
   transition: background 0.15s;
   border-bottom: 1px solid #f3f4f6;
+  min-height: 44px;
+  touch-action: manipulation;
 }
 .bm-row:active { background: #eff6ff; }
 .bm-label {
@@ -309,6 +335,7 @@ select {
   cursor: pointer;
   font-size: 14px;
   color: #1f2937;
+  user-select: none;
 }
 .bm-del {
   background: #fef2f2 !important;
@@ -317,7 +344,9 @@ select {
   padding: 4px 10px !important;
   font-size: 12px !important;
   min-height: auto !important;
+  min-width: auto !important;
   border-radius: 6px !important;
+  touch-action: manipulation;
 }
 
 /* ── Search Results Panel ────────────────────────────────────── */
@@ -350,6 +379,7 @@ select {
   padding: 4px 12px;
   font-size: 16px;
   min-height: auto;
+  min-width: auto;
 }
 
 #searchList {
@@ -358,6 +388,7 @@ select {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   padding: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 }
 
 .result-item {
@@ -370,6 +401,10 @@ select {
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .result-item:active { background: #eff6ff; border-color: #bfdbfe; }
 .result-num {
@@ -419,6 +454,7 @@ select {
   background: #d1d5db;
   border-radius: 2px;
   margin: 10px auto 16px;
+  cursor: grab;
 }
 .dict-word {
   font-size: 24px;
@@ -530,6 +566,25 @@ select {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Install Button ──────────────────────────────────────────── */
+#installBtn {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 50px;
+  padding: 12px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  touch-action: manipulation;
+  min-height: 44px;
+}
+
 /* ── Dark Theme ──────────────────────────────────────────────── */
 body.dark {
   background: #0f1117;
@@ -576,49 +631,44 @@ body.sepia #pageInfo    { background: #e8d9b8; color: #6b5344; }
 /* ── Mobile Responsive ───────────────────────────────────────── */
 @media (max-width: 480px) {
   header      { gap: 4px; padding: 6px 8px; padding-top: calc(6px + env(safe-area-inset-top, 0px)); }
-  button      { font-size: 12px; padding: 6px 9px; }
+  button, label.btn { font-size: 12px; padding: 6px 9px; min-height: 40px; min-width: 40px; }
   #searchInput { width: 100px; }
+  #pageInfo { font-size: 10px; padding: 2px 5px; }
 }
 </style>
-
 </head>
 <body>
 
 <div id="app">
-
-  <!-- ── Header (collapsible) ── -->
-
+  <!-- Header (collapsible) -->
   <div id="headerWrap">
     <header>
       <label class="btn" for="fileInput">📚 Open</label>
       <input type="file" id="fileInput" accept=".epub">
 
-```
-  <button id="prev" title="Previous page">◀</button>
-  <button id="next" title="Next page">▶</button>
+      <button id="prev" title="Previous page">◀</button>
+      <button id="next" title="Next page">▶</button>
 
-  <button id="tocBtn">📑 TOC</button>
-  <button id="bookmarkPanelBtn">🔖 List</button>
-  <button id="addBookmarkBtn">🔖+</button>
-  <button id="dictionaryBtn">📖 Define</button>
+      <button id="tocBtn">📑 TOC</button>
+      <button id="bookmarkPanelBtn">🔖 List</button>
+      <button id="addBookmarkBtn">🔖+</button>
+      <button id="dictionaryBtn">📖 Define</button>
 
-  <button id="fontMinus">A−</button>
-  <button id="fontPlus">A+</button>
+      <button id="fontMinus">A−</button>
+      <button id="fontPlus">A+</button>
 
-  <select id="themeSelect">
-    <option value="light">☀️ Light</option>
-    <option value="dark">🌙 Dark</option>
-    <option value="sepia">📜 Sepia</option>
-  </select>
+      <select id="themeSelect">
+        <option value="light">☀️ Light</option>
+        <option value="dark">🌙 Dark</option>
+        <option value="sepia">📜 Sepia</option>
+      </select>
 
-  <input type="text" id="searchInput" placeholder="🔍 Search…"
-         autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-  <button id="searchBtn">Go</button>
+      <input type="text" id="searchInput" placeholder="🔍 Search…"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <button id="searchBtn">Go</button>
 
-  <span id="pageInfo">📄 —</span>
-</header>
-```
-
+      <span id="pageInfo">📄 —</span>
+    </header>
   </div>
 
   <div id="progressBarContainer"><div id="progressBar"></div></div>
@@ -626,15 +676,12 @@ body.sepia #pageInfo    { background: #e8d9b8; color: #6b5344; }
 </div>
 
 <!-- Tap-to-show-header pill -->
-
 <div id="headerPill">↓ Tap to show menu</div>
 
 <!-- Panel backdrop -->
-
 <div id="panelOverlay"></div>
 
 <!-- TOC Panel -->
-
 <div id="tocPanel" class="panel">
   <div class="panelHeader">
     <span>📑 Table of Contents</span>
@@ -644,7 +691,6 @@ body.sepia #pageInfo    { background: #e8d9b8; color: #6b5344; }
 </div>
 
 <!-- Bookmarks Panel -->
-
 <div id="bookmarkPanel" class="panel">
   <div class="panelHeader">
     <span>🔖 Bookmarks</span>
@@ -654,7 +700,6 @@ body.sepia #pageInfo    { background: #e8d9b8; color: #6b5344; }
 </div>
 
 <!-- Search Results -->
-
 <div id="searchResults">
   <div class="searchHeader">
     <span id="searchCount">🔍 Results</span>
@@ -664,7 +709,6 @@ body.sepia #pageInfo    { background: #e8d9b8; color: #6b5344; }
 </div>
 
 <!-- Dictionary bottom sheet -->
-
 <div id="dictPopup">
   <div class="dict-handle"></div>
   <div id="dictContent"></div>
@@ -672,20 +716,20 @@ body.sepia #pageInfo    { background: #e8d9b8; color: #6b5344; }
 </div>
 
 <!-- Swipe flash arrows -->
-
 <div id="arrowLeft"  class="swipe-arrow">‹</div>
 <div id="arrowRight" class="swipe-arrow">›</div>
 
 <!-- Toast -->
-
 <div id="toast"></div>
 
 <!-- Loading overlay -->
-
 <div id="loadingOverlay">
   <div class="spinner"></div>
   <span id="loadingMsg">Loading…</span>
 </div>
+
+<!-- Install button -->
+<button id="installBtn">⬇️ Install App</button>
 
 <script>
 'use strict';
@@ -696,6 +740,7 @@ let currentFont    = 100;
 let selectedText   = "";
 let currentBookKey = "";
 let headerVisible  = true;
+let deferredPrompt = null;
 
 // Persist theme
 let currentTheme = localStorage.getItem("epub-theme") || "light";
@@ -711,6 +756,7 @@ const toast          = $("toast");
 const loadingOverlay = $("loadingOverlay");
 const arrowLeft      = $("arrowLeft");
 const arrowRight     = $("arrowRight");
+const installBtn     = $("installBtn");
 
 // ── Toast ────────────────────────────────────────────────────────
 let _toastTimer;
@@ -739,20 +785,21 @@ function showHeader() {
 function toggleHeader() {
   headerVisible = !headerVisible;
   headerWrap.classList.toggle("hidden", !headerVisible);
-  // Show the pill hint when header is hidden
   headerPill.style.opacity = headerVisible ? "0" : "1";
 }
 
 // Tap on headerPill reveals the menu
-headerPill.addEventListener("click", showHeader);
-headerPill.style.pointerEvents = "auto";
+headerPill.addEventListener("click", (e) => {
+  e.stopPropagation();
+  showHeader();
+});
 
 // ── Panels ───────────────────────────────────────────────────────
 function openPanel(id) {
   closeAllPanels();
   $(id).classList.add("open");
   panelOverlay.classList.add("visible");
-  showHeader(); // always reveal header when panel opens
+  showHeader();
 }
 function closeAllPanels() {
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("open"));
@@ -769,6 +816,7 @@ function applyBodyTheme(theme) {
 }
 
 function registerRenditionThemes() {
+  if (!rendition?.themes) return;
   rendition.themes.register("light", {
     "html, body": { background: "#ffffff !important", color: "#111827 !important" }
   });
@@ -807,7 +855,8 @@ $("fileInput").addEventListener("change", async (e) => {
   rendition = book.renderTo("viewer", {
     width: "100%",
     height: "100%",
-    allowScriptedContent: false
+    allowScriptedContent: false,
+    snap: true
   });
 
   registerRenditionThemes();
@@ -816,14 +865,16 @@ $("fileInput").addEventListener("change", async (e) => {
 
   // Apply theme + font + gestures on every page render
   rendition.hooks.content.register((contents) => {
-    rendition.themes.select(currentTheme);
-    rendition.themes.fontSize(currentFont + "%");
+    if (rendition?.themes) {
+      rendition.themes.select(currentTheme);
+      rendition.themes.fontSize(currentFont + "%");
+    }
     injectGestures(contents);
   });
 
   // Word/phrase selection
   rendition.on("selected", (cfiRange, contents) => {
-    selectedText = contents.window.getSelection().toString().trim();
+    selectedText = contents?.window?.getSelection?.()?.toString?.()?.trim() || "";
   });
 
   try {
@@ -847,83 +898,159 @@ $("fileInput").addEventListener("change", async (e) => {
 
 // ── Gestures — injected inside every iframe page ──────────────
 function injectGestures(contents) {
-  const doc = contents.document;
+  const doc = contents?.document;
   if (!doc) return;
 
-  let tx = 0, ty = 0, ts = 0;
+  let tx = 0, ty = 0, ts = 0, isScrolling = false;
 
   doc.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1) return;
     tx = e.touches[0].clientX;
     ty = e.touches[0].clientY;
     ts = Date.now();
+    isScrolling = false;
+  }, { passive: true });
+
+  doc.addEventListener("touchmove", (e) => {
+    const dy = Math.abs(e.touches[0].clientY - ty);
+    if (dy > 8) isScrolling = true;
   }, { passive: true });
 
   doc.addEventListener("touchend", (e) => {
-    const dx  = e.changedTouches[0].clientX - tx;
-    const dy  = e.changedTouches[0].clientY - ty;
-    const dt  = Date.now() - ts;
+    if (e.touches?.length > 0) return;
+    
+    const dx = e.changedTouches[0].clientX - tx;
+    const dy = e.changedTouches[0].clientY - ty;
+    const dt = Date.now() - ts;
     const adx = Math.abs(dx);
     const ady = Math.abs(dy);
 
-    // ── Swipe left/right for page turn ──────────────────────
-    if (dt < 450 && adx > 45 && adx > ady * 1.25) {
+    // Swipe for page turn
+    if (dt < 500 && adx > 35 && adx > ady * 1.5 && !isScrolling) {
+      e.preventDefault();
       if (dx < 0) {
         flashArrow("right");
-        rendition.next();
+        rendition?.next?.()?.catch?.(() => {});
       } else {
         flashArrow("left");
-        rendition.prev();
+        rendition?.prev?.()?.catch?.(() => {});
       }
       return;
     }
 
-    // ── Short tap: toggle header ─────────────────────────────
-    if (dt < 280 && adx < 14 && ady < 14) {
-      // Ignore taps on links/buttons
+    // Short tap: toggle header
+    if (dt < 250 && adx < 15 && ady < 15 && !isScrolling) {
       const tag = (e.target.tagName || "").toUpperCase();
-      if (tag === "A" || tag === "BUTTON" || tag === "INPUT") return;
+      if (["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA"].includes(tag)) return;
+      e.preventDefault();
       toggleHeader();
     }
-  }, { passive: true });
+  }, { passive: false });
+
+  // Prevent context menu on long-press (improves text selection UX)
+  doc.addEventListener("contextmenu", (e) => {
+    if (selectedText) e.preventDefault();
+  });
 
   // Keyboard nav
   doc.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowRight" || e.key === "ArrowDown")  rendition.next();
-    if (e.key === "ArrowLeft"  || e.key === "ArrowUp")    rendition.prev();
+    if (e.key === "ArrowRight" || e.key === "ArrowDown")  rendition?.next?.();
+    if (e.key === "ArrowLeft"  || e.key === "ArrowUp")    rendition?.prev?.();
   });
 }
 
 // Outer viewer element touch (fallback for edge zones)
-(function () {
+(function setupViewerTouch() {
   const viewer = $("viewer");
-  let tx = 0, ty = 0, ts = 0;
-  viewer.addEventListener("touchstart", e => {
-    tx = e.touches[0].clientX;
-    ty = e.touches[0].clientY;
-    ts = Date.now();
+  if (!viewer) return;
+  
+  let startX = 0, startY = 0, startTime = 0, isScrolling = false;
+  
+  viewer.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    startTime = Date.now();
+    isScrolling = false;
   }, { passive: true });
-  viewer.addEventListener("touchend", e => {
-    const dx = e.changedTouches[0].clientX - tx;
-    const dy = e.changedTouches[0].clientY - ty;
-    const dt = Date.now() - ts;
-    if (dt < 450 && Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.25) {
-      if (dx < 0) { flashArrow("right"); rendition && rendition.next(); }
-      else         { flashArrow("left");  rendition && rendition.prev(); }
+  
+  viewer.addEventListener("touchmove", (e) => {
+    const dy = Math.abs(e.touches[0].clientY - startY);
+    if (dy > 10) isScrolling = true;
+  }, { passive: true });
+  
+  viewer.addEventListener("touchend", (e) => {
+    if (e.touches?.length > 0 || isScrolling) return;
+    
+    const dx = Math.abs(e.changedTouches[0].clientX - startX);
+    const dy = Math.abs(e.changedTouches[0].clientY - startY);
+    const dt = Date.now() - startTime;
+    
+    // Short tap → toggle header
+    if (dt < 300 && dx < 20 && dy < 20) {
+      e.preventDefault();
+      toggleHeader();
+      return;
+    }
+    
+    // Swipe for page turn
+    const swipeDx = e.changedTouches[0].clientX - startX;
+    const adx = Math.abs(swipeDx);
+    if (dt < 500 && adx > 35 && adx > dy * 1.5) {
+      e.preventDefault();
+      if (swipeDx < 0) {
+        flashArrow("right");
+        rendition?.next?.()?.catch?.(() => {});
+      } else {
+        flashArrow("left");
+        rendition?.prev?.()?.catch?.(() => {});
+      }
+    }
+  }, { passive: false });
+
+  // Prevent iOS rubber-band scroll on horizontal swipes
+  viewer.addEventListener("touchmove", (e) => {
+    if (e.touches.length === 1) {
+      const dx = Math.abs(e.touches[0].clientX - (window._viewerTouchX || 0));
+      const dy = Math.abs(e.touches[0].clientY - (window._viewerTouchY || 0));
+      if (dx > dy && dx > 10) {
+        e.preventDefault();
+      }
+    }
+  }, { passive: false });
+
+  viewer.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 1) {
+      window._viewerTouchX = e.touches[0].clientX;
+      window._viewerTouchY = e.touches[0].clientY;
     }
   }, { passive: true });
 })();
 
+// Handle iOS viewport resize on address bar toggle
+if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+  window.addEventListener("resize", () => {
+    if (rendition) {
+      clearTimeout(window._resizeTimer);
+      window._resizeTimer = setTimeout(() => {
+        rendition?.resize?.();
+      }, 150);
+    }
+  });
+}
+
 // ── Arrow flash ──────────────────────────────────────────────────
 function flashArrow(side) {
   const el = side === "left" ? arrowLeft : arrowRight;
+  if (!el) return;
   el.style.opacity = "1";
   clearTimeout(el._t);
   el._t = setTimeout(() => { el.style.opacity = "0"; }, 320);
 }
 
 // ── Prev / Next buttons ──────────────────────────────────────────
-$("prev").onclick = () => rendition && rendition.prev();
-$("next").onclick = () => rendition && rendition.next();
+$("prev").onclick = () => rendition?.prev?.();
+$("next").onclick = () => rendition?.next?.();
 
 // ── Font size ────────────────────────────────────────────────────
 $("fontPlus").onclick = () => {
@@ -943,13 +1070,13 @@ $("fontMinus").onclick = () => {
 function setupLocations() {
   showLoading("Building location index…");
   book.ready
-    .then(() => book.locations.generate(1600))
+    .then(() => book.locations?.generate?.(1600))
     .then(() => {
       hideLoading();
-      const total = book.locations.total;
+      const total = book.locations?.total;
       rendition.on("relocated", loc => {
         try {
-          const cur = book.locations.locationFromCfi(loc.start.cfi);
+          const cur = book.locations?.locationFromCfi?.(loc.start.cfi);
           if (cur != null && total) {
             pageInfo.textContent   = `📄 ${cur} / ${total}`;
             progressBar.style.width = ((cur / total) * 100) + "%";
@@ -964,8 +1091,10 @@ function setupLocations() {
 $("tocBtn").onclick = () => openPanel("tocPanel");
 
 function buildTOC() {
+  if (!book?.loaded?.navigation) return;
   book.loaded.navigation.then(nav => {
     const container = $("tocContent");
+    if (!container) return;
     container.innerHTML = "";
     if (!nav.toc || nav.toc.length === 0) {
       container.innerHTML = "<p style='color:#9ca3af;padding:14px'>No table of contents in this book.</p>";
@@ -977,27 +1106,47 @@ function buildTOC() {
 
 // Recursive TOC renderer — handles unlimited nesting depth
 function renderTOCItems(items, container, depth) {
+  if (!items?.length || !container) return;
+  
   items.forEach(item => {
-    const label      = (item.label || "").trim();
-    const hasKids    = Array.isArray(item.subitems) && item.subitems.length > 0;
-    const indent     = 8 + depth * 18;
+    const label = (item.label || "").trim();
+    const hasKids = Array.isArray(item.subitems) && item.subitems.length > 0;
+    const indent = 8 + depth * 18;
 
     const row = document.createElement("div");
     row.className = "toc-row";
     row.style.paddingLeft = indent + "px";
+    row.dataset.hasChildren = hasKids;
 
     if (hasKids) {
       // Expand toggle button
       const btn = document.createElement("button");
-      btn.className  = "toc-expand-btn";
+      btn.className = "toc-expand-btn";
       btn.textContent = "▶";
-      btn.title       = "Expand";
-      btn.setAttribute("aria-expanded", "false");
+      btn.title = "Expand section";
+      btn.type = "button";
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const childWrap = row.nextElementSibling;
+        if (childWrap?.classList.contains("toc-children")) {
+          const isOpen = childWrap.classList.toggle("open");
+          btn.textContent = isOpen ? "▼" : "▶";
+          btn.setAttribute("aria-expanded", String(isOpen));
+        }
+      };
 
       const lbl = document.createElement("span");
-      lbl.className   = "toc-label";
+      lbl.className = "toc-label";
       lbl.textContent = label;
-      lbl.title       = label;
+      lbl.title = label;
+      lbl.onclick = (e) => {
+        e.stopPropagation();
+        if (item.href && rendition) {
+          rendition.display(item.href).catch(console.warn);
+          closeAllPanels();
+        }
+      };
 
       row.appendChild(btn);
       row.appendChild(lbl);
@@ -1009,89 +1158,75 @@ function renderTOCItems(items, container, depth) {
       renderTOCItems(item.subitems, childWrap, depth + 1);
       container.appendChild(childWrap);
 
-      // Toggle expand on button click
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const open = childWrap.classList.toggle("open");
-        btn.textContent = open ? "▼" : "▶";
-        btn.setAttribute("aria-expanded", String(open));
-      });
-
-      // Navigate on label click
-      lbl.addEventListener("click", () => {
-        if (item.href) rendition.display(item.href);
-        closeAllPanels();
-      });
-
     } else {
-      // Leaf node
+      // Leaf node - full row clickable
       const lbl = document.createElement("span");
-      lbl.className   = "toc-label";
+      lbl.className = "toc-label";
       lbl.textContent = (depth > 0 ? "└ " : "") + label;
-      lbl.title       = label;
-
+      lbl.title = label;
       row.appendChild(lbl);
       container.appendChild(row);
-
-      row.addEventListener("click", () => {
-        if (item.href) rendition.display(item.href);
-        closeAllPanels();
-      });
+      
+      row.onclick = (e) => {
+        e.stopPropagation();
+        if (item.href && rendition) {
+          rendition.display(item.href).catch(console.warn);
+          closeAllPanels();
+        }
+      };
     }
   });
 }
 
 // ── Search ───────────────────────────────────────────────────────
 function hideSearch() {
-  $("searchResults").classList.remove("visible");
+  const sr = $("searchResults");
+  if (sr) sr.classList.remove("visible");
 }
 
 $("searchBtn").onclick = doSearch;
-$("searchInput").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
+$("searchInput")?.addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
 
 async function doSearch() {
-  const query = $("searchInput").value.trim();
+  const query = $("searchInput")?.value?.trim();
   if (!query) { showToast("Enter a search term"); return; }
   if (!book)  { showToast("Open a book first");   return; }
 
-  // Dismiss keyboard on mobile
-  $("searchInput").blur();
+  $("searchInput")?.blur();
 
   const resultsDiv = $("searchResults");
   const searchList = $("searchList");
   const searchCount = $("searchCount");
+
+  if (!searchList || !searchCount) return;
 
   searchList.innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;padding:30px;color:#9ca3af">
       <div class="spinner" style="margin-bottom:12px"></div>
       Searching for "<strong>${query}</strong>"…
     </div>`;
-  resultsDiv.classList.add("visible");
+  if (resultsDiv) resultsDiv.classList.add("visible");
   searchCount.textContent = "🔍 Searching…";
 
   try {
     const results = await searchAllSpine(query);
     renderSearchResults(results, query);
   } catch (err) {
-    searchList.innerHTML = `<p style="padding:20px;color:#ef4444">Search error: ${err.message}</p>`;
+    searchList.innerHTML = `<p style="padding:20px;color:#ef4444">Search error: ${err?.message || err}</p>`;
     searchCount.textContent = "🔍 Error";
   }
 }
 
-// Uses epub.js built-in Section.find() for correct CFI generation
 async function searchAllSpine(query) {
   const all = [];
-  const spineItems = book.spine.spineItems;
+  const spineItems = book?.spine?.spineItems || [];
 
   for (const item of spineItems) {
     try {
       await item.load(book.load.bind(book));
-      // epub.js Section.find(query) → [{cfi, excerpt}]
       const found = (typeof item.find === "function") ? item.find(query) : [];
       found.forEach(r => all.push({ cfi: r.cfi, excerpt: r.excerpt || "" }));
-    } catch (_) {
-      // Skip unloadable sections silently
-    } finally {
+    } catch (_) {} finally {
       try { item.unload(); } catch (_) {}
     }
   }
@@ -1101,8 +1236,10 @@ async function searchAllSpine(query) {
 function renderSearchResults(results, query) {
   const searchList  = $("searchList");
   const searchCount = $("searchCount");
-  const escaped     = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re          = new RegExp(escaped, "gi");
+  if (!searchList || !searchCount) return;
+  
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(escaped, "gi");
 
   searchCount.textContent = results.length
     ? `🔍 ${results.length} result${results.length !== 1 ? "s" : ""}`
@@ -1119,32 +1256,41 @@ function renderSearchResults(results, query) {
   }
 
   results.forEach((r, i) => {
-    const div  = document.createElement("div");
+    const div = document.createElement("div");
     div.className = "result-item";
+    div.setAttribute("role", "button");
+    div.setAttribute("tabindex", "0");
 
-    const highlighted = r.excerpt.replace(re, m =>
-      `<mark>${m}</mark>`
-    );
-
+    const highlighted = r.excerpt.replace(re, m => `<mark>${m}</mark>`);
     div.innerHTML = `
       <div class="result-num">Result ${i + 1}</div>
       <div class="result-excerpt">…${highlighted}…</div>`;
 
-    // Navigate — handle both click (desktop) and touchend (mobile)
-    function navigate(e) {
-      e.preventDefault();
-      e.stopPropagation();
+    const navigate = async () => {
       if (!rendition) return;
-      rendition.display(r.cfi)
-        .then(() => hideSearch())
-        .catch(err => {
-          console.warn("Nav error:", err);
-          showToast("⚠️ Could not navigate to result");
-        });
-    }
+      try {
+        await rendition.display(r.cfi);
+        hideSearch();
+        showToast("📍 Jumped to result");
+      } catch (err) {
+        console.warn("Nav error:", err);
+        showToast("⚠️ Could not navigate");
+      }
+    };
 
-    div.addEventListener("click",    navigate);
-    div.addEventListener("touchend", navigate, { passive: false });
+    div.addEventListener("click", (e) => { e.preventDefault(); navigate(); });
+    div.addEventListener("touchend", (e) => { 
+      e.preventDefault(); 
+      e.stopPropagation(); 
+      navigate(); 
+    }, { passive: false });
+    div.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        navigate();
+      }
+    });
+
     searchList.appendChild(div);
   });
 }
@@ -1156,9 +1302,11 @@ $("dictionaryBtn").onclick = async () => {
     return;
   }
 
-  const word       = selectedText.split(/\s+/)[0];
-  const dictPopup  = $("dictPopup");
+  const word = selectedText.split(/\s+/)[0];
+  const dictPopup = $("dictPopup");
   const dictContent = $("dictContent");
+  
+  if (!dictPopup || !dictContent) return;
 
   dictContent.innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;padding:20px;color:#9ca3af">
@@ -1168,7 +1316,7 @@ $("dictionaryBtn").onclick = async () => {
   dictPopup.classList.add("open");
 
   try {
-    const res  = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
     const data = await res.json();
 
     if (data.title) {
@@ -1178,7 +1326,7 @@ $("dictionaryBtn").onclick = async () => {
       return;
     }
 
-    const entry    = data[0];
+    const entry = data[0];
     const phonetic = entry.phonetic || entry.phonetics?.find(p => p.text)?.text || "";
 
     let html = `<div class="dict-word">📖 ${entry.word}</div>`;
@@ -1201,14 +1349,16 @@ $("dictionaryBtn").onclick = async () => {
 };
 
 function closeDictPopup() {
-  $("dictPopup").classList.remove("open");
+  $("dictPopup")?.classList.remove("open");
 }
+
 // Swipe down on dict sheet to close
 (function () {
   const sheet = $("dictPopup");
+  if (!sheet) return;
   let sy = 0;
   sheet.addEventListener("touchstart", e => { sy = e.touches[0].clientY; }, { passive: true });
-  sheet.addEventListener("touchend",   e => {
+  sheet.addEventListener("touchend", e => {
     if (e.changedTouches[0].clientY - sy > 60) closeDictPopup();
   }, { passive: true });
 })();
@@ -1216,10 +1366,10 @@ function closeDictPopup() {
 // ── Bookmarks ────────────────────────────────────────────────────
 $("addBookmarkBtn").onclick = () => {
   if (!rendition) { showToast("📚 Open a book first"); return; }
-  const loc = rendition.currentLocation();
+  const loc = rendition.currentLocation?.();
   if (!loc) { showToast("⚠️ Location not ready yet"); return; }
 
-  const cfi  = loc.start.cfi;
+  const cfi = loc.start.cfi;
   const data = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
 
   if (!data.includes(cfi)) {
@@ -1239,6 +1389,7 @@ $("bookmarkPanelBtn").onclick = () => {
 
 function updateBookmarkPanel() {
   const content = $("bookmarkContent");
+  if (!content) return;
   content.innerHTML = "";
   const data = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
 
@@ -1256,13 +1407,15 @@ function updateBookmarkPanel() {
     row.className = "bm-row";
     row.innerHTML = `
       <span class="bm-label">🔖 Bookmark ${i + 1}</span>
-      <button class="bm-del">✕</button>`;
+      <button class="bm-del" type="button">✕</button>`;
 
-    row.querySelector(".bm-label").addEventListener("click", () => {
-      rendition.display(cfi);
-      closeAllPanels();
+    row.querySelector(".bm-label")?.addEventListener("click", () => {
+      if (rendition) {
+        rendition.display(cfi);
+        closeAllPanels();
+      }
     });
-    row.querySelector(".bm-del").addEventListener("click", e => {
+    row.querySelector(".bm-del")?.addEventListener("click", e => {
       e.stopPropagation();
       deleteBookmark(cfi);
     });
@@ -1287,13 +1440,30 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-let deferredInstallPrompt;
-window.addEventListener('beforeinstallprompt', e => {
+// ── PWA Install Prompt ───────────────────────────────────────────
+window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
-  deferredInstallPrompt = e;
-  // Could show a custom install button here
+  deferredPrompt = e;
+  if (installBtn) installBtn.style.display = "flex";
 });
-</script>
 
+installBtn?.addEventListener("click", async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === "accepted") {
+    showToast("✅ epubSwan installed!");
+    if (installBtn) installBtn.style.display = "none";
+  }
+  deferredPrompt = null;
+});
+
+window.addEventListener("appinstalled", () => {
+  if (installBtn) installBtn.style.display = "none";
+});
+
+// ── Global Touch Optimization ────────────────────────────────────
+document.addEventListener("touchstart", () => {}, { passive: true });
+</script>
 </body>
 </html>
