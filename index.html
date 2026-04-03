@@ -27,8 +27,10 @@ html, body {
   background: #f0f2f5;
   color: #1e293b;
   -webkit-tap-highlight-color: rgba(37, 99, 235, 0.2);
-  touch-action: manipulation;
+  touch-action: none;
   overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* ---------- APP SHELL ---------- */
@@ -47,10 +49,12 @@ html, body {
   transition: max-height 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1), opacity 0.25s;
   opacity: 1;
   z-index: 500;
+  will-change: max-height, opacity;
 }
 #headerWrap.hidden {
   max-height: 0;
   opacity: 0;
+  pointer-events: none;
 }
 
 /* pill when header hidden */
@@ -72,6 +76,7 @@ html, body {
   opacity: 0;
   transition: opacity 0.2s;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  touch-action: manipulation;
 }
 #headerWrap.hidden ~ #headerPill {
   opacity: 1;
@@ -89,6 +94,7 @@ header {
   background: white;
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   z-index: 501;
+  touch-action: manipulation;
 }
 
 /* buttons & inputs */
@@ -108,8 +114,10 @@ button, label.btn {
   min-width: 44px;
   transition: 0.1s linear;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
-button:active { transform: scale(0.96); background: #1d4ed8; }
+button:active, label.btn:active { transform: scale(0.96); background: #1d4ed8; }
+button:disabled, label.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 select, #searchInput {
   padding: 8px 12px;
   border-radius: 10px;
@@ -118,6 +126,7 @@ select, #searchInput {
   font-size: 15px;
   min-height: 44px;
   outline: none;
+  touch-action: manipulation;
 }
 #searchInput { width: 150px; }
 #fileInput { display: none; }
@@ -127,6 +136,8 @@ select, #searchInput {
   border-radius: 30px;
   font-size: 12px;
   font-weight: 600;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* progress bar */
@@ -148,6 +159,9 @@ select, #searchInput {
   min-height: 0;
   overflow: hidden;
   position: relative;
+  touch-action: pan-y pinch-zoom;
+}
+#viewer iframe {
   touch-action: pan-y pinch-zoom;
 }
 
@@ -195,6 +209,7 @@ select, #searchInput {
   overflow-y: auto;
   padding: 12px;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 /* TOC rows */
@@ -206,12 +221,15 @@ select, #searchInput {
   border-radius: 12px;
   cursor: pointer;
   min-height: 44px;
+  touch-action: manipulation;
 }
 .toc-row:active, .bm-row:active { background: #eef2ff; }
 .toc-label, .bm-label {
   flex: 1;
   font-size: 14px;
   word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
 }
 .toc-expand-btn {
   background: none;
@@ -222,6 +240,7 @@ select, #searchInput {
   font-size: 11px;
   min-width: auto;
   min-height: 32px;
+  touch-action: manipulation;
 }
 .toc-children {
   display: none;
@@ -238,6 +257,7 @@ select, #searchInput {
   padding: 4px 12px;
   border-radius: 8px;
   font-size: 12px;
+  touch-action: manipulation;
 }
 
 /* ---------- SEARCH MODAL (fixed: never disappears on scroll) ---------- */
@@ -248,6 +268,7 @@ select, #searchInput {
   backdrop-filter: blur(5px);
   z-index: 1999;
   display: none;
+  touch-action: none;
 }
 #searchResults {
   position: fixed;
@@ -257,12 +278,12 @@ select, #searchInput {
   bottom: 8%;
   background: white;
   border-radius: 32px;
-  display: flex;
+  display: none;
   flex-direction: column;
   z-index: 2000;
   overflow: hidden;
   box-shadow: 0 25px 50px -12px black;
-  display: none;
+  touch-action: pan-y;
 }
 #searchResults.visible { display: flex; }
 #searchBackdrop.visible { display: block; }
@@ -275,12 +296,14 @@ select, #searchInput {
   align-items: center;
   font-weight: 700;
   font-size: 16px;
+  flex-shrink: 0;
 }
 #searchList {
   flex: 1;
   overflow-y: auto;
   padding: 12px;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 .result-item {
   background: #f8fafc;
@@ -290,6 +313,7 @@ select, #searchInput {
   margin-bottom: 10px;
   cursor: pointer;
   transition: 0.08s linear;
+  touch-action: manipulation;
 }
 .result-item:active {
   background: #dbeafe;
@@ -299,6 +323,8 @@ select, #searchInput {
   font-size: 14px;
   line-height: 1.5;
   color: #1e293b;
+  user-select: text;
+  -webkit-user-select: text;
 }
 .result-excerpt mark {
   background: #fde047;
@@ -322,6 +348,7 @@ select, #searchInput {
   transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.2);
   max-height: 70vh;
   overflow-y: auto;
+  touch-action: pan-y;
 }
 #dictPopup.open { transform: translateY(0); }
 .dict-handle {
@@ -331,15 +358,20 @@ select, #searchInput {
   border-radius: 10px;
   margin: 6px auto 18px;
   cursor: grab;
+  touch-action: none;
 }
 .dict-word {
   font-size: 28px;
   font-weight: 800;
   margin-bottom: 6px;
+  user-select: text;
+  -webkit-user-select: text;
 }
 .dict-def {
   margin: 12px 0;
   line-height: 1.5;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* ---------- TOAST & LOADING ---------- */
@@ -422,6 +454,7 @@ select, #searchInput {
   box-shadow: 0 8px 20px rgba(0,0,0,0.2);
   display: none;
   min-height: 48px;
+  touch-action: manipulation;
 }
 
 /* ---------- DARK & SEPIA THEMES ---------- */
@@ -444,6 +477,20 @@ body.sepia .toc-row:active { background: #f3e5c9; }
   header { gap: 4px; padding: 6px 8px; }
   button, label.btn { padding: 5px 8px; font-size: 12px; min-height: 40px; }
   #searchInput { width: 110px; font-size: 13px; }
+}
+
+/* ---------- TAP ZONE FOR HEADER TOGGLE ---------- */
+#tapZone {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 400;
+  pointer-events: none;
+}
+#tapZone.active {
+  pointer-events: auto;
 }
 </style>
 </head>
@@ -474,6 +521,7 @@ body.sepia .toc-row:active { background: #f3e5c9; }
   </div>
   <div id="progressBarContainer"><div id="progressBar"></div></div>
   <div id="viewer"></div>
+  <div id="tapZone"></div>
 </div>
 
 <div id="headerPill">↓ Tap to show menu</div>
@@ -521,17 +569,21 @@ const $ = id => document.getElementById(id);
 const headerWrap = $('headerWrap'), headerPill = $('headerPill');
 const progressBar = $('progressBar'), pageInfo = $('pageInfo');
 const panelOverlay = $('panelOverlay'), toast = $('toast'), loadingOverlay = $('loadingOverlay');
+const tapZone = $('tapZone');
 let book, rendition;
 let currentFont = 100;
 let currentTheme = localStorage.getItem('epub-theme') || 'light';
 let currentBookKey = '';
 let headerVisible = true;
 let selectedWord = '';
+let isSearching = false;
+let lastSwipeTime = 0;
+let gestureHandlers = [];
 
-function showToast(msg) {
+function showToast(msg, duration = 2600) {
   toast.textContent = msg;
   toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 2600);
+  setTimeout(() => toast.classList.remove('show'), duration);
 }
 function showLoading(msg) {
   loadingOverlay.querySelector('div:last-child').innerText = msg || 'Loading...';
@@ -542,10 +594,35 @@ function hideLoading() {
 }
 
 // ---------- Header toggle (fixed) ----------
-function showHeader() { headerVisible = true; headerWrap.classList.remove('hidden'); }
-function hideHeader() { headerVisible = false; headerWrap.classList.add('hidden'); }
-function toggleHeader() { headerVisible ? hideHeader() : showHeader(); }
-headerPill.onclick = () => showHeader();
+function showHeader() { 
+  headerVisible = true; 
+  headerWrap.classList.remove('hidden');
+  tapZone.classList.remove('active');
+}
+function hideHeader() { 
+  headerVisible = false; 
+  headerWrap.classList.add('hidden');
+  tapZone.classList.add('active');
+}
+function toggleHeader() { 
+  headerVisible ? hideHeader() : showHeader(); 
+}
+headerPill.onclick = (e) => { e.stopPropagation(); showHeader(); };
+
+// Tap zone for header toggle when hidden
+tapZone.addEventListener('touchstart', (e) => {
+  if (!headerVisible && e.touches.length === 1) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+tapZone.addEventListener('touchend', (e) => {
+  if (!headerVisible && e.changedTouches.length === 1) {
+    e.preventDefault();
+    e.stopPropagation();
+    showHeader();
+  }
+}, { passive: false });
 
 // ---------- Panels ----------
 function openPanel(id) {
@@ -558,7 +635,10 @@ function closeAllPanels() {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('open'));
   panelOverlay.classList.remove('visible');
 }
-panelOverlay.onclick = closeAllPanels;
+panelOverlay.onclick = (e) => { 
+  e.stopPropagation(); 
+  closeAllPanels(); 
+};
 
 // ---------- Theme ----------
 function setTheme(theme) {
@@ -568,7 +648,9 @@ function setTheme(theme) {
   if (theme === 'dark') document.body.classList.add('dark');
   if (theme === 'sepia') document.body.classList.add('sepia');
   $('themeSelect').value = theme;
-  if (rendition) rendition.themes.select(theme);
+  if (rendition) {
+    rendition.themes.select(theme);
+  }
 }
 $('themeSelect').onchange = e => setTheme(e.target.value);
 setTheme(currentTheme);
@@ -578,110 +660,301 @@ function injectGestures(contents) {
   const doc = contents?.document;
   if (!doc || doc.__swipeFixed) return;
   doc.__swipeFixed = true;
-  let startX = 0, startY = 0, startTime = 0, isScrolling = false;
+  
+  let startX = 0, startY = 0, startTime = 0, isScrolling = false, swipeDetected = false;
+  
+  function resetGesture() {
+    startX = 0; startY = 0; startTime = 0; 
+    isScrolling = false; swipeDetected = false;
+  }
+  
   doc.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) return;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     startTime = Date.now();
     isScrolling = false;
+    swipeDetected = false;
   }, { passive: true });
+  
   doc.addEventListener('touchmove', (e) => {
-    if (Math.abs(e.touches[0].clientY - startY) > 12) isScrolling = true;
+    if (e.touches.length !== 1) return;
+    const currentY = e.touches[0].clientY;
+    const currentX = e.touches[0].clientX;
+    const dy = Math.abs(currentY - startY);
+    const dx = Math.abs(currentX - startX);
+    
+    // Detect if user is trying to scroll vertically
+    if (dy > 15 && dy > dx) {
+      isScrolling = true;
+    }
+    
+    // Detect horizontal swipe for page turning
+    if (!isScrolling && dx > 30 && Date.now() - startTime < 500) {
+      swipeDetected = true;
+    }
   }, { passive: true });
+  
   doc.addEventListener('touchend', (e) => {
     if (e.changedTouches.length === 0) return;
-    const dx = e.changedTouches[0].clientX - startX;
-    const dy = e.changedTouches[0].clientY - startY;
+    
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const dx = endX - startX;
+    const dy = endY - startY;
     const dt = Date.now() - startTime;
     const absDx = Math.abs(dx), absDy = Math.abs(dy);
-    // horizontal swipe -> page turn
-    if (dt < 400 && absDx > 40 && absDx > absDy * 1.8 && !isScrolling) {
+    
+    // Prevent default only for intentional swipes
+    if (swipeDetected && dt < 500 && absDx > 50 && absDx > absDy * 2) {
       e.preventDefault();
-      if (dx < 0) { flashArrow('right'); rendition?.next()?.catch(()=>{}); }
-      else { flashArrow('left'); rendition?.prev()?.catch(()=>{}); }
+      
+      // Debounce page turns
+      const now = Date.now();
+      if (now - lastSwipeTime < 300) {
+        resetGesture();
+        return;
+      }
+      lastSwipeTime = now;
+      
+      if (dx < 0) { 
+        flashArrow('right'); 
+        if (rendition) rendition.next().catch(() => {}); 
+      } else { 
+        flashArrow('left'); 
+        if (rendition) rendition.prev().catch(() => {}); 
+      }
+      resetGesture();
       return;
     }
-    // tap -> toggle header (avoid UI elements)
-    if (dt < 280 && absDx < 12 && absDy < 12 && !isScrolling) {
-      const tag = (e.target.tagName || '').toUpperCase();
-      if (!['A','BUTTON','INPUT','SELECT','TEXTAREA'].includes(tag)) {
+    
+    // Tap detection for header toggle (only if not scrolling or swiping)
+    if (dt < 300 && absDx < 20 && absDy < 20 && !isScrolling && !swipeDetected) {
+      const target = e.target;
+      const tagName = target?.tagName?.toUpperCase();
+      const isInteractive = ['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'LABEL'].includes(tagName) 
+        || target?.closest?.('button, a, input, select, textarea, label, .btn');
+      
+      if (!isInteractive) {
         e.preventDefault();
+        e.stopPropagation();
         toggleHeader();
       }
     }
+    
+    resetGesture();
   }, { passive: false });
-  doc.addEventListener('contextmenu', (e) => e.preventDefault());
+  
+  // Prevent context menu on long press
+  doc.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    // Capture selected text for dictionary on long press
+    const sel = doc.getSelection?.()?.toString?.()?.trim();
+    if (sel && sel.length > 1 && sel.length < 50) {
+      selectedWord = sel.split(/\s+/)[0].replace(/[^\w'-]/g, '');
+      if (selectedWord.length > 1) {
+        showToast(`📖 "${selectedWord}" - tap Define to look up`);
+      }
+    }
+  });
+  
+  // Track selections for dictionary
+  doc.addEventListener('mouseup', () => {
+    const sel = doc.getSelection?.()?.toString?.()?.trim();
+    if (sel && sel.length > 1 && sel.length < 50) {
+      selectedWord = sel.split(/\s+/)[0].replace(/[^\w'-]/g, '');
+    }
+  });
+  
+  // Store handler for cleanup
+  gestureHandlers.push({ doc, reset: resetGesture });
+}
+
+function cleanupGestures() {
+  gestureHandlers.forEach(({ doc }) => {
+    if (doc?.__swipeFixed) {
+      doc.__swipeFixed = false;
+    }
+  });
+  gestureHandlers = [];
 }
 
 function flashArrow(side) {
   const el = $(side === 'left' ? 'arrowLeft' : 'arrowRight');
-  if (el) { el.style.opacity = '1'; clearTimeout(el._t); el._t = setTimeout(() => el.style.opacity = '0', 300); }
+  if (el) { 
+    el.style.opacity = '1'; 
+    clearTimeout(el._t); 
+    el._t = setTimeout(() => el.style.opacity = '0', 300); 
+  }
 }
 
 // ---------- Load EPUB ----------
+async function loadEpubFile(file) {
+  showLoading('Opening book...');
+  
+  // Cleanup previous book
+  if (rendition) {
+    try { 
+      rendition.destroy(); 
+      cleanupGestures();
+    } catch(_) {}
+    rendition = null;
+  }
+  if (book) {
+    try { book.destroy(); } catch(_) {}
+    book = null;
+  }
+  
+  try {
+    book = ePub(file);
+    
+    rendition = book.renderTo('viewer', {
+      width: '100%',
+      height: '100%',
+      allowScriptedContent: false,
+      snap: true,
+      flow: 'paginated'
+    });
+    
+    // Register themes
+    rendition.themes.register('light', { 
+      body: { background: '#ffffff', color: '#1e293b', 'line-height': '1.6' },
+      '::selection': { background: 'rgba(37, 99, 235, 0.3)' }
+    });
+    rendition.themes.register('dark', { 
+      body: { background: '#0f172a', color: '#e2e8f0', 'line-height': '1.6' },
+      '::selection': { background: 'rgba(96, 165, 250, 0.4)' }
+    });
+    rendition.themes.register('sepia', { 
+      body: { background: '#fef7e0', color: '#5e3a1c', 'line-height': '1.6' },
+      '::selection': { background: 'rgba(234, 179, 8, 0.3)' }
+    });
+    
+    rendition.themes.select(currentTheme);
+    rendition.themes.fontSize(currentFont + '%');
+    
+    // Inject gestures into content
+    rendition.hooks.content.register((contents) => {
+      injectGestures(contents);
+      
+      // Enable text selection for dictionary
+      const doc = contents?.document;
+      if (doc) {
+        doc.body.style.userSelect = 'text';
+        doc.body.style.webkitUserSelect = 'text';
+        doc.body.style.touchAction = 'auto';
+      }
+    });
+    
+    // Handle relocation for progress
+    rendition.on('relocated', async (loc) => {
+      if (!book?.locations) return;
+      
+      try {
+        // Wait for locations to be ready
+        if (!book.locations.total && book.locations?.generate) {
+          await book.locations.generate(1800);
+        }
+        
+        const cur = book.locations.locationFromCfi(loc.start.cfi);
+        const total = book.locations.total;
+        
+        if (cur !== undefined && total && total > 0) {
+          pageInfo.innerText = `📄 ${cur}/${total}`;
+          progressBar.style.width = Math.min(100, (cur / total) * 100) + '%';
+        }
+      } catch(e) {
+        console.warn('Progress update error:', e);
+      }
+    });
+    
+    // Handle selection for dictionary
+    rendition.on('selected', (cfiRange, contents) => {
+      try {
+        const doc = contents?.document;
+        const sel = doc?.getSelection?.()?.toString?.()?.trim();
+        if (sel && sel.length > 1 && sel.length < 50) {
+          selectedWord = sel.split(/\s+/)[0].replace(/[^\w'-]/g, '');
+          if (selectedWord.length > 1) {
+            showToast(`📖 "${selectedWord}" selected - tap Define`);
+          }
+        }
+      } catch(e) {
+        console.warn('Selection error:', e);
+      }
+    });
+    
+    // Display the book
+    await rendition.display();
+    
+    // Build TOC
+    buildTOC();
+    
+    // Setup progress tracking
+    setupProgress();
+    
+    // Get book metadata for bookmarks
+    const meta = await book.loaded.metadata;
+    currentBookKey = 'epub-bm-' + (meta?.identifier?.replace(/[^\w-]/g, '_') || file.name.replace(/[^\w.-]/g, '_'));
+    updateBookmarkPanel();
+    
+    hideLoading();
+    showToast('✨ Book loaded! Swipe ← → to turn pages');
+    
+  } catch(err) {
+    console.error('Load error:', err);
+    hideLoading();
+    showToast('❌ Failed to open book: ' + err.message);
+  }
+}
+
 $('fileInput').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  showLoading('Opening book...');
-  if (rendition) try { rendition.destroy(); } catch(_) {}
-  book = ePub(file);
-  rendition = book.renderTo('viewer', {
-    width: '100%',
-    height: '100%',
-    allowScriptedContent: false,
-    snap: true
-  });
-  rendition.themes.register('light', { body: { background: '#ffffff', color: '#1e293b' } });
-  rendition.themes.register('dark', { body: { background: '#0f172a', color: '#e2e8f0' } });
-  rendition.themes.register('sepia', { body: { background: '#fef7e0', color: '#5e3a1c' } });
-  rendition.themes.select(currentTheme);
-  rendition.themes.fontSize(currentFont + '%');
-  rendition.hooks.content.register((contents) => injectGestures(contents));
-  
-  // capture selected text for dictionary
-  rendition.on('selected', (cfi, contents) => {
-    const sel = contents?.window?.getSelection?.()?.toString?.()?.trim();
-    if (sel) selectedWord = sel.split(/\s+/)[0];
-  });
-  
-  try { await rendition.display(); } catch(err) { console.warn(err); }
-  buildTOC();
-  setupProgress();
-  const meta = await book.loaded.metadata;
-  currentBookKey = 'epub-bm-' + (meta?.identifier || file.name);
-  updateBookmarkPanel();
-  hideLoading();
+  await loadEpubFile(file);
+  e.target.value = ''; // Reset input
 });
 
 function setupProgress() {
-  book.ready.then(() => book.locations?.generate?.(1800)).catch(()=>{});
-  rendition.on('relocated', async (loc) => {
-    if (!book?.locations) return;
-    const cur = book.locations.locationFromCfi(loc.start.cfi);
-    const total = book.locations.total;
-    if (cur && total) {
-      pageInfo.innerText = `📄 ${cur}/${total}`;
-      progressBar.style.width = (cur / total) * 100 + '%';
-    }
-  });
+  // Generate locations in background
+  if (book?.locations?.generate) {
+    book.locations.generate(1800).catch(() => {});
+  }
 }
 
 // ---------- TOC (full nesting with expand/collapse) ----------
 function buildTOC() {
   if (!book?.navigation) return;
+  
   book.loaded.navigation.then(nav => {
     const container = $('tocContent');
+    if (!container) return;
+    
     container.innerHTML = '';
-    if (!nav.toc?.length) { container.innerHTML = '<p>No TOC available.</p>'; return; }
+    
+    if (!nav.toc?.length) { 
+      container.innerHTML = '<p style="color:gray;text-align:center;padding:20px;">No table of contents available.</p>'; 
+      return; 
+    }
+    
     function render(items, parent, depth) {
       items.forEach(item => {
-        const row = document.createElement('div'); row.className = 'toc-row';
+        const row = document.createElement('div'); 
+        row.className = 'toc-row';
         row.style.paddingLeft = (8 + depth * 18) + 'px';
-        const labelSpan = document.createElement('span'); labelSpan.className = 'toc-label'; labelSpan.innerText = item.label || 'untitled';
-        const hasKids = item.subitems?.length;
+        
+        const labelSpan = document.createElement('span'); 
+        labelSpan.className = 'toc-label'; 
+        labelSpan.innerText = item.label || 'untitled';
+        
+        const hasKids = item.subitems?.length > 0;
+        
         if (hasKids) {
-          const btn = document.createElement('button'); btn.textContent = '▶'; btn.className = 'toc-expand-btn';
+          const btn = document.createElement('button'); 
+          btn.textContent = '▶'; 
+          btn.className = 'toc-expand-btn';
+          btn.type = 'button';
+          
           btn.onclick = (e) => {
             e.stopPropagation();
             const childDiv = row.nextElementSibling;
@@ -690,141 +963,399 @@ function buildTOC() {
               btn.textContent = childDiv.classList.contains('open') ? '▼' : '▶';
             }
           };
-          row.appendChild(btn); row.appendChild(labelSpan); parent.appendChild(row);
-          const childDiv = document.createElement('div'); childDiv.className = 'toc-children';
+          
+          row.appendChild(btn); 
+          row.appendChild(labelSpan); 
+          parent.appendChild(row);
+          
+          const childDiv = document.createElement('div'); 
+          childDiv.className = 'toc-children';
           render(item.subitems, childDiv, depth+1);
           parent.appendChild(childDiv);
         } else {
-          row.appendChild(labelSpan); parent.appendChild(row);
-          row.onclick = () => { if (item.href) rendition.display(item.href); closeAllPanels(); };
+          row.appendChild(labelSpan); 
+          parent.appendChild(row);
+          
+          row.onclick = () => { 
+            if (item.href) {
+              rendition.display(item.href).catch(() => {});
+              closeAllPanels();
+            }
+          };
         }
       });
     }
+    
     render(nav.toc, container, 0);
+  }).catch(err => {
+    console.warn('TOC error:', err);
+    $('tocContent').innerHTML = '<p style="color:#b91c1c;">Error loading TOC</p>';
   });
 }
 
-// ---------- SEARCH (fixed: modal, scroll does NOT close) ----------
+// ---------- SEARCH (fixed: modal stays visible while scrolling) ----------
 function hideSearch() {
   $('searchResults').classList.remove('visible');
   $('searchBackdrop').classList.remove('visible');
+  isSearching = false;
 }
-$('closeSearchBtn').onclick = hideSearch;
-$('searchBackdrop').onclick = hideSearch;
+
+$('closeSearchBtn').onclick = (e) => { 
+  e.stopPropagation(); 
+  hideSearch(); 
+};
+
+$('searchBackdrop').onclick = (e) => { 
+  // Only close if clicking the backdrop itself, not the modal
+  if (e.target === $('searchBackdrop')) {
+    hideSearch();
+  }
+};
+
 $('searchBtn').onclick = doSearch;
-$('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+$('searchInput').addEventListener('keydown', e => { 
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    doSearch();
+  }
+});
+
+// Prevent search modal from closing on scroll
+['searchList', 'searchResults'].forEach(id => {
+  const el = $(id);
+  if (el) {
+    el.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        el._startY = e.touches[0].clientY;
+        el._startScroll = el.scrollTop;
+      }
+    }, { passive: true });
+    
+    el.addEventListener('touchmove', (e) => {
+      e.stopPropagation();
+    }, { passive: false });
+  }
+});
 
 async function doSearch() {
+  if (isSearching) return;
+  
   const query = $('searchInput').value.trim();
-  if (!query) { showToast('Enter a word to search'); return; }
-  if (!book) { showToast('Open a book first'); return; }
+  if (!query) { 
+    showToast('Enter a word to search'); 
+    return; 
+  }
+  if (!book) { 
+    showToast('Open a book first'); 
+    return; 
+  }
+  
+  isSearching = true;
   $('searchInput').blur();
-  const resultsDiv = $('searchResults'), searchList = $('searchList'), countSpan = $('searchCount');
+  
+  const resultsDiv = $('searchResults'), 
+        searchList = $('searchList'), 
+        countSpan = $('searchCount');
+  
   searchList.innerHTML = '<div style="text-align:center;padding:30px;"><div class="spinner"></div><br>Searching...</div>';
   resultsDiv.classList.add('visible');
   $('searchBackdrop').classList.add('visible');
   countSpan.innerText = '🔍 Searching...';
-  const spineItems = book.spine?.spineItems || [];
-  let allResults = [];
-  for (const item of spineItems) {
-    try {
-      await item.load(book.load.bind(book));
-      if (typeof item.find === 'function') {
-        const found = await item.find(query);
-        if (found?.length) allResults.push(...found.map(r => ({ cfi: r.cfi, excerpt: r.excerpt || '' })));
+  
+  try {
+    const spineItems = book.spine?.spineItems || [];
+    let allResults = [];
+    
+    for (const item of spineItems) {
+      try {
+        await item.load(book.load.bind(book));
+        if (typeof item.find === 'function') {
+          const found = await item.find(query);
+          if (found?.length) {
+            allResults.push(...found.map(r => ({ 
+              cfi: r.cfi, 
+              excerpt: r.excerpt || '',
+              label: item.label 
+            })));
+          }
+        }
+      } catch(e) {
+        console.warn('Search item error:', e);
+      } finally {
+        try { item.unload(); } catch(_) {}
       }
-    } catch(e) {}
-    finally { try { item.unload(); } catch(_) {} }
+    }
+    
+    if (allResults.length === 0) {
+      searchList.innerHTML = '<div style="padding:30px;text-align:center;color:gray;">😕 No matches found for "' + query + '"</div>';
+      countSpan.innerText = '🔍 0 results';
+      return;
+    }
+    
+    countSpan.innerText = `🔍 ${allResults.length} result${allResults.length !== 1 ? 's' : ''}`;
+    searchList.innerHTML = '';
+    
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    
+    allResults.forEach((res, idx) => {
+      const div = document.createElement('div'); 
+      div.className = 'result-item';
+      
+      const excerpt = res.excerpt.length > 300 ? res.excerpt.slice(0,300)+'…' : res.excerpt;
+      const highlighted = excerpt.replace(regex, '<mark>$1</mark>');
+      
+      div.innerHTML = `
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">📍 ${res.label || 'Section ' + (idx+1)}</div>
+        <div class="result-excerpt">…${highlighted}…</div>
+      `;
+      
+      div.onclick = async () => {
+        try {
+          if (rendition) {
+            await rendition.display(res.cfi);
+            hideSearch();
+            showToast('📍 Jumped to result');
+          }
+        } catch(e) {
+          showToast('Error navigating to result');
+        }
+      };
+      
+      searchList.appendChild(div);
+    });
+    
+  } catch(err) {
+    console.error('Search error:', err);
+    searchList.innerHTML = '<div style="padding:30px;text-align:center;color:#b91c1c;">⚠️ Search failed</div>';
+    countSpan.innerText = '🔍 Error';
+  } finally {
+    isSearching = false;
   }
-  if (allResults.length === 0) {
-    searchList.innerHTML = '<div style="padding:30px;text-align:center;">😕 No matches found.</div>';
-    countSpan.innerText = '🔍 0 results';
-    return;
-  }
-  countSpan.innerText = `🔍 ${allResults.length} result${allResults.length !== 1 ? 's' : ''}`;
-  searchList.innerHTML = '';
-  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-  allResults.forEach((res, idx) => {
-    const div = document.createElement('div'); div.className = 'result-item';
-    const excerpt = res.excerpt.length > 300 ? res.excerpt.slice(0,300)+'…' : res.excerpt;
-    const highlighted = excerpt.replace(regex, '<mark>$1</mark>');
-    div.innerHTML = `<div class="result-excerpt">…${highlighted}…</div>`;
-    div.onclick = async () => {
-      if (rendition) {
-        await rendition.display(res.cfi);
-        hideSearch();
-        showToast('📍 Jumped to result');
-      }
-    };
-    searchList.appendChild(div);
-  });
 }
 
 // ---------- DICTIONARY (fixed) ----------
-$('dictionaryBtn').onclick = async () => {
-  if (!selectedWord) { showToast('Select a word first (long press / double tap)'); return; }
-  const popup = $('dictPopup'), content = $('dictContent');
-  content.innerHTML = '<div class="spinner" style="margin:20px auto;"></div><div>Looking up...</div>';
-  popup.classList.add('open');
+async function lookupDictionary(word) {
+  if (!word || word.length < 2) {
+    showToast('Select a word first');
+    return null;
+  }
+  
+  const cleanWord = word.replace(/[^\w'-]/g, '').toLowerCase();
+  if (cleanWord.length < 2) {
+    showToast('Word too short');
+    return null;
+  }
+  
   try {
-    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(selectedWord)}`);
-    const data = await res.json();
-    if (!res.ok || data.title) throw new Error();
-    const entry = data[0];
-    let html = `<div class="dict-word">📖 ${entry.word}</div>`;
-    if (entry.phonetic) html += `<div style="color:#2563eb;">/${entry.phonetic}/</div>`;
-    entry.meanings?.slice(0,3).forEach(m => {
-      html += `<div style="margin-top:12px;"><strong>${m.partOfSpeech}</strong></div>`;
-      m.definitions.slice(0,2).forEach(d => {
-        html += `<div class="dict-def">• ${d.definition}</div>`;
-        if (d.example) html += `<div style="font-style:italic; color:#475569;">“${d.example}”</div>`;
-      });
+    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanWord)}`, {
+      headers: { 'Accept': 'application/json' }
     });
-    content.innerHTML = html;
+    
+    if (!res.ok) {
+      throw new Error('Not found');
+    }
+    
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('No results');
+    }
+    
+    return data[0];
+    
   } catch(e) {
-    content.innerHTML = `<p style="color:#b91c1c;">⚠️ No definition for “${selectedWord}”</p>`;
+    console.warn('Dictionary lookup failed:', e);
+    return null;
+  }
+}
+
+$('dictionaryBtn').onclick = async () => {
+  if (!selectedWord || selectedWord.length < 2) { 
+    showToast('Select a word first (long press or highlight text)'); 
+    return; 
+  }
+  
+  const popup = $('dictPopup'), content = $('dictContent');
+  content.innerHTML = '<div class="spinner" style="margin:20px auto;"></div><div>Looking up "' + selectedWord + '"...</div>';
+  popup.classList.add('open');
+  
+  try {
+    const entry = await lookupDictionary(selectedWord);
+    
+    if (!entry) {
+      content.innerHTML = `
+        <p style="color:#b91c1c;text-align:center;padding:20px;">
+          ⚠️ No definition found for "<strong>${selectedWord}</strong>"<br><br>
+          <small>Try selecting a different word or check your internet connection</small>
+        </p>
+      `;
+      return;
+    }
+    
+    let html = `<div class="dict-word">📖 ${entry.word}</div>`;
+    
+    if (entry.phonetic) {
+      html += `<div style="color:#2563eb;font-family:monospace;">/${entry.phonetic}/</div>`;
+    }
+    
+    if (entry.meanings?.length) {
+      entry.meanings.slice(0, 3).forEach(m => {
+        html += `<div style="margin-top:16px;padding-top:12px;border-top:1px solid #e2e8f0;">
+          <strong style="color:#2563eb;">${m.partOfSpeech}</strong>
+        </div>`;
+        
+        m.definitions.slice(0, 3).forEach((d, i) => {
+          html += `<div class="dict-def"><strong>${i+1}.</strong> ${d.definition}</div>`;
+          if (d.example) {
+            html += `<div style="font-style:italic;color:#64748b;margin-left:20px;">"${d.example}"</div>`;
+          }
+        });
+        
+        if (m.synonyms?.length) {
+          html += `<div style="font-size:13px;color:#64748b;margin-top:8px;">
+            Synonyms: ${m.synonyms.slice(0, 5).join(', ')}
+          </div>`;
+        }
+      });
+    }
+    
+    content.innerHTML = html;
+    
+  } catch(e) {
+    console.error('Dictionary error:', e);
+    content.innerHTML = `<p style="color:#b91c1c;text-align:center;">⚠️ Error loading definition</p>`;
   }
 };
-$('closeDictBtn').onclick = () => $('dictPopup').classList.remove('open');
-// swipe-down to close dictionary
-const dictSheet = $('dictPopup'); let startYDict = 0;
-dictSheet.addEventListener('touchstart', e => { startYDict = e.touches[0].clientY; });
-dictSheet.addEventListener('touchend', e => { if (e.changedTouches[0].clientY - startYDict > 60) $('dictPopup').classList.remove('open'); });
+
+$('closeDictBtn').onclick = () => {
+  $('dictPopup').classList.remove('open');
+  selectedWord = '';
+};
+
+// Swipe-down to close dictionary
+const dictSheet = $('dictPopup');
+let startYDict = 0, startScrollDict = 0;
+
+dictSheet.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    startYDict = e.touches[0].clientY;
+    startScrollDict = dictSheet.scrollTop;
+  }
+}, { passive: true });
+
+dictSheet.addEventListener('touchmove', (e) => {
+  // Allow scrolling within the sheet, but detect swipe-down at top
+  if (e.touches.length === 1 && dictSheet.scrollTop === 0) {
+    const currentY = e.touches[0].clientY;
+    if (currentY - startYDict > 50) {
+      // Swipe down detected at top of sheet
+      e.preventDefault();
+    }
+  }
+}, { passive: false });
+
+dictSheet.addEventListener('touchend', (e) => {
+  if (e.changedTouches.length === 1) {
+    const endY = e.changedTouches[0].clientY;
+    // Swipe down more than 100px to close
+    if (endY - startYDict > 100 && startScrollDict === 0) {
+      $('dictPopup').classList.remove('open');
+      selectedWord = '';
+    }
+  }
+});
+
+// Handle handle drag
+const dictHandle = $('.dict-handle');
+if (dictHandle) {
+  dictHandle.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    startYDict = e.touches[0].clientY;
+  }, { passive: false });
+  
+  dictHandle.addEventListener('touchend', (e) => {
+    const endY = e.changedTouches[0].clientY;
+    if (endY - startYDict > 50) {
+      $('dictPopup').classList.remove('open');
+      selectedWord = '';
+    }
+  });
+}
 
 // ---------- BOOKMARKS ----------
 $('addBookmarkBtn').onclick = () => {
-  if (!rendition || !currentBookKey) { showToast('Open a book first'); return; }
-  const loc = rendition.currentLocation(); if (!loc) return;
+  if (!rendition || !currentBookKey) { 
+    showToast('Open a book first'); 
+    return; 
+  }
+  
+  const loc = rendition.currentLocation(); 
+  if (!loc?.start?.cfi) {
+    showToast('Cannot bookmark this location');
+    return;
+  }
+  
   const cfi = loc.start.cfi;
   let bm = JSON.parse(localStorage.getItem(currentBookKey) || '[]');
+  
   if (!bm.includes(cfi)) {
     bm.push(cfi);
     localStorage.setItem(currentBookKey, JSON.stringify(bm));
     updateBookmarkPanel();
     showToast('📌 Bookmark added');
-  } else showToast('Already bookmarked');
+  } else {
+    showToast('Already bookmarked');
+  }
 };
-$('bookmarkPanelBtn').onclick = () => { updateBookmarkPanel(); openPanel('bookmarkPanel'); };
+
+$('bookmarkPanelBtn').onclick = () => { 
+  updateBookmarkPanel(); 
+  openPanel('bookmarkPanel'); 
+};
+
 function updateBookmarkPanel() {
-  const container = $('bookmarkContent'); if (!container) return;
-  let bm = JSON.parse(localStorage.getItem(currentBookKey) || '[]');
+  const container = $('bookmarkContent'); 
+  if (!container) return;
+  
+  let bm = [];
+  try {
+    bm = JSON.parse(localStorage.getItem(currentBookKey) || '[]');
+  } catch(e) {
+    bm = [];
+  }
+  
   container.innerHTML = '';
+  
   if (!bm.length) {
-    container.innerHTML = '<p style="color:gray;">No bookmarks. Tap 🔖+ while reading.</p>';
+    container.innerHTML = '<p style="color:gray;text-align:center;padding:20px;">No bookmarks yet.<br>Tap 🔖+ while reading to add one.</p>';
     return;
   }
+  
   bm.forEach((cfi, idx) => {
-    const row = document.createElement('div'); row.className = 'bm-row';
-    row.innerHTML = `<span class="bm-label">🔖 Bookmark ${idx+1}</span><button class="bm-del">✕</button>`;
-    row.querySelector('.bm-label').onclick = () => { rendition.display(cfi); closeAllPanels(); };
+    const row = document.createElement('div'); 
+    row.className = 'bm-row';
+    
+    row.innerHTML = `
+      <span class="bm-label">🔖 Bookmark ${idx+1}</span>
+      <button class="bm-del" type="button">✕</button>
+    `;
+    
+    row.querySelector('.bm-label').onclick = (e) => {
+      e.stopPropagation();
+      rendition.display(cfi).catch(() => {
+        showToast('Error navigating to bookmark');
+      });
+      closeAllPanels();
+    };
+    
     row.querySelector('.bm-del').onclick = (e) => {
       e.stopPropagation();
       let arr = JSON.parse(localStorage.getItem(currentBookKey) || '[]');
       arr = arr.filter(c => c !== cfi);
       localStorage.setItem(currentBookKey, JSON.stringify(arr));
       updateBookmarkPanel();
-      showToast('Removed');
+      showToast('🗑️ Bookmark removed');
     };
+    
     container.appendChild(row);
   });
 }
@@ -832,53 +1363,128 @@ function updateBookmarkPanel() {
 // ---------- Font & Navigation ----------
 $('fontPlus').onclick = () => {
   if (rendition) {
-    currentFont = Math.min(currentFont+10, 220);
-    rendition.themes.fontSize(currentFont+'%');
+    currentFont = Math.min(currentFont + 10, 220);
+    rendition.themes.fontSize(currentFont + '%');
+    localStorage.setItem('epub-font-size', currentFont);
     showToast(`${currentFont}%`);
   }
 };
+
 $('fontMinus').onclick = () => {
   if (rendition) {
-    currentFont = Math.max(currentFont-10, 70);
-    rendition.themes.fontSize(currentFont+'%');
+    currentFont = Math.max(currentFont - 10, 70);
+    rendition.themes.fontSize(currentFont + '%');
+    localStorage.setItem('epub-font-size', currentFont);
     showToast(`${currentFont}%`);
   }
 };
-$('prev').onclick = () => rendition?.prev();
-$('next').onclick = () => rendition?.next();
+
+// Load saved font size
+const savedFont = localStorage.getItem('epub-font-size');
+if (savedFont) {
+  currentFont = parseInt(savedFont, 10) || 100;
+}
+
+$('prev').onclick = () => {
+  if (rendition) {
+    flashArrow('left');
+    rendition.prev().catch(() => showToast('Already at beginning'));
+  }
+};
+
+$('next').onclick = () => {
+  if (rendition) {
+    flashArrow('right');
+    rendition.next().catch(() => showToast('Already at end'));
+  }
+};
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+  if (!rendition) return;
+  
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    flashArrow('left');
+    rendition.prev().catch(() => {});
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    flashArrow('right');
+    rendition.next().catch(() => {});
+  } else if (e.key === 'Escape') {
+    closeAllPanels();
+    hideSearch();
+    $('dictPopup').classList.remove('open');
+  }
+});
 
 // ---------- PWA & Service Worker ----------
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW failed:', e));
+    navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW registration failed:', e));
   });
 }
+
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
   $('installBtn').style.display = 'flex';
 });
+
 $('installBtn')?.addEventListener('click', async () => {
   if (deferredPrompt) {
     deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') showToast('✅ Installed!');
+    try {
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') showToast('✅ Installed!');
+    } catch(e) {
+      console.warn('Install error:', e);
+    }
     $('installBtn').style.display = 'none';
     deferredPrompt = null;
   }
 });
 
-// ---------- Prevent search modal from closing when scrolling ----------
-// (already independent, but ensure touchmove inside searchList does not bubble)
-$('searchList')?.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: false });
-$('searchResults')?.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: false });
+// ---------- Window resize handling ----------
+let resizeTimeout;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    if (rendition) {
+      rendition.resize();
+    }
+  }, 150);
+});
 
-// ---------- Final touches ----------
+// ---------- Visibility change - pause heavy operations ----------
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // Could pause location generation or other heavy tasks
+  }
+});
+
+// ---------- Final initialization ----------
 window.closeAllPanels = closeAllPanels;
-window.addEventListener('resize', () => { if (rendition) setTimeout(() => rendition.resize(), 100); });
+
+// Prevent accidental page navigation on double-tap zoom
+document.addEventListener('touchstart', (e) => {
+  if (e.touches.length > 1) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+// Initialize
 hideLoading();
-showToast('✨ epubSwan ready — swipe left/right, tap center to hide menu');
+showToast('✨ epubSwan ready — swipe ← → to turn pages, tap center to toggle menu');
+
+// Demo mode hint
+if (!localStorage.getItem('epub-demo-shown')) {
+  setTimeout(() => {
+    showToast('💡 Tip: Long-press a word, then tap "Define" for dictionary');
+    localStorage.setItem('epub-demo-shown', 'true');
+  }, 3000);
+}
 </script>
 </body>
 </html>
