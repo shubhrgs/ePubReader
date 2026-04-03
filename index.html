@@ -39,9 +39,10 @@ html, body {
   flex-direction: column;
   height: 100dvh;
   position: relative;
+  background: #f0f2f5;
 }
 
-/* ---------- COLLAPSIBLE HEADER ---------- */
+/* ---------- COLLAPSIBLE HEADER with enhanced safe-area top padding ---------- */
 #headerWrap {
   flex-shrink: 0;
   overflow: hidden;
@@ -50,16 +51,20 @@ html, body {
   opacity: 1;
   z-index: 500;
   will-change: max-height, opacity;
+  /* ensure header area respects dynamic island / camera notch */
+  padding-top: env(safe-area-inset-top, 0px);
+  background: transparent;
 }
 #headerWrap.hidden {
   max-height: 0;
   opacity: 0;
   pointer-events: none;
+  padding-top: 0;
 }
 
 #headerPill {
   position: fixed;
-  top: env(safe-area-inset-top, 0);
+  top: max(8px, env(safe-area-inset-top, 8px));
   left: 50%;
   transform: translateX(-50%);
   background: rgba(37, 99, 235, 0.94);
@@ -67,15 +72,16 @@ html, body {
   color: white;
   font-size: 11px;
   font-weight: 600;
-  padding: 5px 18px;
-  border-radius: 0 0 24px 24px;
+  padding: 6px 20px;
+  border-radius: 0 0 28px 28px;
   z-index: 600;
   pointer-events: auto;
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.2s;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
   touch-action: manipulation;
+  white-space: nowrap;
 }
 #headerWrap.hidden ~ #headerPill {
   opacity: 1;
@@ -87,12 +93,15 @@ header {
   gap: 6px;
   align-items: center;
   justify-content: center;
-  padding: 8px 12px;
-  padding-top: calc(8px + env(safe-area-inset-top, 0px));
+  padding: 6px 12px;
+  /* Critical fix: extra safe area top so notch/camera doesn't clip */
+  padding-top: max(12px, env(safe-area-inset-top, 12px));
+  padding-bottom: 10px;
   background: white;
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   z-index: 501;
   touch-action: manipulation;
+  border-bottom: 1px solid #eef2ff;
 }
 
 button, label.btn {
@@ -155,6 +164,7 @@ select, #searchInput {
   position: relative;
   touch-action: pan-y pinch-zoom;
   z-index: 100;
+  background: #fff;
 }
 #viewer iframe {
   touch-action: pan-y pinch-zoom;
@@ -194,6 +204,7 @@ select, #searchInput {
 .panel.open { left: 0; }
 .panelHeader {
   padding: 16px;
+  padding-top: max(16px, env(safe-area-inset-top, 16px));
   background: #2563eb;
   color: white;
   display: flex;
@@ -284,6 +295,7 @@ select, #searchInput {
 #searchBackdrop.visible { display: block; }
 .searchHeader {
   padding: 18px;
+  padding-top: max(18px, env(safe-area-inset-top, 18px));
   background: #2563eb;
   color: white;
   display: flex;
@@ -337,7 +349,7 @@ select, #searchInput {
   border-radius: 28px 28px 0 0;
   box-shadow: 0 -12px 40px rgba(0,0,0,0.2);
   padding: 12px 20px 28px;
-  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   z-index: 3000;
   transform: translateY(100%);
   transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.2);
@@ -466,7 +478,7 @@ body.sepia .result-item { background: #fff4e4; border-color: #e2c8a0; }
 body.sepia .toc-row:active { background: #f3e5c9; }
 
 @media (max-width: 560px) {
-  header { gap: 4px; padding: 6px 8px; }
+  header { gap: 4px; padding: 6px 8px; padding-top: max(12px, env(safe-area-inset-top, 12px)); }
   button, label.btn { padding: 5px 8px; font-size: 12px; min-height: 40px; }
   #searchInput { width: 110px; font-size: 13px; }
 }
@@ -617,7 +629,7 @@ function setTheme(theme) {
 $('themeSelect').onchange = e => setTheme(e.target.value);
 setTheme(currentTheme);
 
-// ---------- SWIPE & TAP (FIXED for PWA) ----------
+// ---------- SWIPE & TAP (FIXED for PWA, enhanced header toggle) ----------
 function setupGestures() {
   if (!rendition) return;
   
@@ -669,7 +681,7 @@ function setupGestures() {
       const absDx = Math.abs(dx);
       const absDy = Math.abs(dy);
       
-      // Horizontal swipe for page turn
+      // Horizontal swipe for page turn (robust for iOS/Android)
       if (!isVerticalSwipe && dt < 400 && absDx > 55 && absDx > absDy * 1.3) {
         e.preventDefault();
         const now = Date.now();
@@ -686,9 +698,10 @@ function setupGestures() {
         return;
       }
       
-      // Tap to toggle header (short tap, minimal movement)
+      // Tap to toggle header (touch on main text body) - no conflict with interactive elements
       if (dt < 250 && absDx < 20 && absDy < 20 && !isVerticalSwipe) {
         const targetTag = e.target?.tagName?.toUpperCase();
+        // Do not toggle if tapping on links, buttons, inputs or interactive elements
         if (!['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'].includes(targetTag)) {
           e.preventDefault();
           toggleHeader();
@@ -784,7 +797,7 @@ function buildTOC() {
   }).catch(() => container.innerHTML = '<p style="color:#b91c1c;text-align:center;">Error loading TOC</p>');
 }
 
-// ---------- SEARCH (fixed for PWA) ----------
+// ---------- SEARCH ----------
 function hideSearch() {
   $('searchResults').classList.remove('visible');
   $('searchBackdrop').classList.remove('visible');
@@ -846,7 +859,7 @@ async function doSearch() {
   }
 }
 
-// ---------- DICTIONARY (fixed: gets selection directly) ----------
+// ---------- DICTIONARY (selection from book) ----------
 async function lookupWord(word) {
   if (!word || word.length < 2) return null;
   const cleanWord = word.replace(/[^\w'-]/g, '').toLowerCase();
@@ -920,7 +933,7 @@ dictSheet.addEventListener('touchend', (e) => {
   }
 });
 
-// ---------- BOOKMARKS (nested navigation fixed: proper CFI) ----------
+// ---------- BOOKMARKS ----------
 $('addBookmarkBtn').onclick = () => {
   if (!rendition || !currentBookKey) { showToast('Open a book first'); return; }
   const loc = rendition.currentLocation();
