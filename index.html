@@ -57,7 +57,6 @@ html, body {
   pointer-events: none;
 }
 
-/* pill when header hidden */
 #headerPill {
   position: fixed;
   top: env(safe-area-inset-top, 0);
@@ -82,7 +81,6 @@ html, body {
   opacity: 1;
 }
 
-/* header bar */
 header {
   display: flex;
   flex-wrap: wrap;
@@ -97,7 +95,6 @@ header {
   touch-action: manipulation;
 }
 
-/* buttons & inputs */
 button, label.btn {
   display: inline-flex;
   align-items: center;
@@ -139,7 +136,6 @@ select, #searchInput {
   -webkit-user-select: text;
 }
 
-/* progress bar */
 #progressBarContainer {
   height: 3px;
   background: #e2e8f0;
@@ -152,13 +148,12 @@ select, #searchInput {
   transition: width 0.25s;
 }
 
-/* viewer */
 #viewer {
   flex: 1;
   min-height: 0;
   overflow: hidden;
   position: relative;
-  touch-action: none;
+  touch-action: pan-y pinch-zoom;
   z-index: 100;
 }
 #viewer iframe {
@@ -167,7 +162,7 @@ select, #searchInput {
   -webkit-user-select: text;
 }
 
-/* ---------- PANELS (TOC, BOOKMARKS) ---------- */
+/* Panels */
 #panelOverlay {
   position: fixed;
   inset: 0;
@@ -214,7 +209,6 @@ select, #searchInput {
   touch-action: pan-y;
 }
 
-/* TOC rows */
 .toc-row, .bm-row {
   display: flex;
   align-items: center;
@@ -251,7 +245,6 @@ select, #searchInput {
 }
 .toc-children.open { display: block; }
 
-/* bookmark delete */
 .bm-del {
   background: #fee2e2;
   color: #dc2626;
@@ -262,7 +255,7 @@ select, #searchInput {
   touch-action: manipulation;
 }
 
-/* ---------- SEARCH MODAL ---------- */
+/* Search modal */
 #searchBackdrop {
   position: fixed;
   inset: 0;
@@ -334,7 +327,7 @@ select, #searchInput {
   padding: 0 2px;
 }
 
-/* ---------- DICTIONARY BOTTOM SHEET ---------- */
+/* Dictionary bottom sheet */
 #dictPopup {
   position: fixed;
   bottom: 0;
@@ -376,7 +369,7 @@ select, #searchInput {
   -webkit-user-select: text;
 }
 
-/* ---------- TOAST & LOADING ---------- */
+/* Toast & loading */
 #toast {
   position: fixed;
   bottom: 30px;
@@ -421,7 +414,6 @@ select, #searchInput {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ---------- SWIPE FLASH ARROWS ---------- */
 .swipe-arrow {
   position: fixed;
   top: 50%;
@@ -441,7 +433,6 @@ select, #searchInput {
 #arrowLeft { left: 0; border-radius: 0 16px 16px 0; }
 #arrowRight { right: 0; border-radius: 16px 0 0 16px; }
 
-/* ---------- INSTALL BUTTON ---------- */
 #installBtn {
   position: fixed;
   bottom: 24px;
@@ -459,7 +450,7 @@ select, #searchInput {
   touch-action: manipulation;
 }
 
-/* ---------- DARK & SEPIA THEMES ---------- */
+/* Themes */
 body.dark header, body.dark .panel, body.dark #searchResults, body.dark #dictPopup {
   background: #0f172a;
   color: #e2e8f0;
@@ -474,7 +465,6 @@ body.sepia header, body.sepia .panel, body.sepia #searchResults, body.sepia #dic
 body.sepia .result-item { background: #fff4e4; border-color: #e2c8a0; }
 body.sepia .toc-row:active { background: #f3e5c9; }
 
-/* responsive */
 @media (max-width: 560px) {
   header { gap: 4px; padding: 6px 8px; }
   button, label.btn { padding: 5px 8px; font-size: 12px; min-height: 40px; }
@@ -514,26 +504,22 @@ body.sepia .toc-row:active { background: #f3e5c9; }
 <div id="headerPill">↓ Tap to show menu</div>
 <div id="panelOverlay"></div>
 
-<!-- TOC Panel -->
 <div id="tocPanel" class="panel">
   <div class="panelHeader"><span>📑 Table of Contents</span><button id="closeTocBtn">✕</button></div>
   <div id="tocContent" class="panelContent"></div>
 </div>
 
-<!-- Bookmarks Panel -->
 <div id="bookmarkPanel" class="panel">
   <div class="panelHeader"><span>🔖 Bookmarks</span><button id="closeBmBtn">✕</button></div>
   <div id="bookmarkContent" class="panelContent"></div>
 </div>
 
-<!-- Search modal -->
 <div id="searchBackdrop"></div>
 <div id="searchResults">
   <div class="searchHeader"><span id="searchCount">🔍 Search results</span><button id="closeSearchBtn">✕</button></div>
   <div id="searchList"></div>
 </div>
 
-<!-- Dictionary bottom sheet -->
 <div id="dictPopup">
   <div class="dict-handle"></div>
   <div id="dictContent"></div>
@@ -544,7 +530,6 @@ body.sepia .toc-row:active { background: #f3e5c9; }
 <div id="loadingOverlay"><div class="spinner"></div><div>Loading book...</div></div>
 <button id="installBtn">📲 Install App</button>
 
-<!-- flash arrows -->
 <div id="arrowLeft" class="swipe-arrow">‹</div>
 <div id="arrowRight" class="swipe-arrow">›</div>
 
@@ -563,10 +548,9 @@ let currentFont = parseInt(localStorage.getItem('epub-font-size')) || 100;
 let currentTheme = localStorage.getItem('epub-theme') || 'light';
 let currentBookKey = '';
 let headerVisible = true;
-let selectedWord = '';
-let isSearching = false;
 let lastSwipeTime = 0;
 let bookLoaded = false;
+let currentContentWindow = null; // for dictionary selection
 
 // ---------- Utilities ----------
 function showToast(msg, duration = 2600) {
@@ -584,7 +568,6 @@ function hideLoading() {
   loadingOverlay.classList.remove('visible');
 }
 
-// ---------- Header toggle (SIMPLIFIED & FIXED) ----------
 function showHeader() { 
   headerVisible = true; 
   headerWrap.classList.remove('hidden'); 
@@ -598,34 +581,6 @@ function toggleHeader() {
 }
 
 headerPill.onclick = (e) => { e.stopPropagation(); showHeader(); };
-
-// Tap on viewer area toggles header (when book is loaded)
-viewer.addEventListener('touchend', (e) => {
-  if (!bookLoaded) return;
-  
-  // Ignore if touching interactive elements
-  const target = e.target;
-  const tagName = target?.tagName?.toUpperCase();
-  if (['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'].includes(tagName)) return;
-  if (target?.closest?.('button, a, input, select, textarea, .btn, .panel, #searchResults, #dictPopup')) return;
-  
-  // Simple tap detection
-  if (e.changedTouches.length === 1) {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleHeader();
-  }
-}, { passive: false });
-
-// Also support click for desktop testing
-viewer.addEventListener('click', (e) => {
-  if (!bookLoaded) return;
-  const target = e.target;
-  const tagName = target?.tagName?.toUpperCase();
-  if (['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'].includes(tagName)) return;
-  if (target?.closest?.('button, a, input, select, textarea, .btn, .panel, #searchResults, #dictPopup')) return;
-  toggleHeader();
-});
 
 // ---------- Panels ----------
 function openPanel(panelId) {
@@ -646,8 +601,6 @@ panelOverlay.onclick = (e) => {
     closeAllPanels();
   }
 };
-
-// Panel close buttons
 $('closeTocBtn').onclick = closeAllPanels;
 $('closeBmBtn').onclick = closeAllPanels;
 
@@ -659,138 +612,95 @@ function setTheme(theme) {
   if (theme === 'dark') document.body.classList.add('dark');
   if (theme === 'sepia') document.body.classList.add('sepia');
   $('themeSelect').value = theme;
-  if (rendition) {
-    rendition.themes.select(theme);
-  }
+  if (rendition) rendition.themes.select(theme);
 }
 $('themeSelect').onchange = e => setTheme(e.target.value);
 setTheme(currentTheme);
 
-// ---------- SWIPE NAVIGATION (FIXED for epub.js iframes) ----------
-function setupSwipeNavigation() {
+// ---------- SWIPE & TAP (FIXED for PWA) ----------
+function setupGestures() {
   if (!rendition) return;
   
-  // Use epub.js built-in swipe support with enhanced handling
-  rendition.on('relocated', (location) => {
-    // Page changed successfully
-    updateProgress(location);
-  });
-  
-  // Inject gesture handlers into each content iframe
   rendition.hooks.content.register((contents) => {
     const doc = contents.document;
-    if (!doc || doc.__epubSwipeSetup) return;
-    doc.__epubSwipeSetup = true;
+    if (!doc || doc.__epubSwanGestures) return;
+    doc.__epubSwanGestures = true;
     
     let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
-    let isVerticalScroll = false;
+    let isVerticalSwipe = false;
+    
+    // Enable text selection
+    doc.body.style.userSelect = 'text';
+    doc.body.style.webkitUserSelect = 'text';
+    doc.body.style.touchAction = 'pan-y pinch-zoom';
+    
+    // Selection tracking for dictionary
+    doc.addEventListener('selectionchange', () => {
+      const selection = doc.getSelection();
+      if (selection && selection.toString().trim().length > 0) {
+        const word = selection.toString().trim().split(/\s+/)[0].replace(/[^\w'-]/g, '');
+        if (word.length > 1) window._lastSelectedWord = word;
+      }
+    });
     
     doc.addEventListener('touchstart', (e) => {
-      if (e.touches.length !== 1) return;
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-      touchStartTime = Date.now();
-      isVerticalScroll = false;
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+        isVerticalSwipe = false;
+      }
     }, { passive: true });
     
     doc.addEventListener('touchmove', (e) => {
       if (e.touches.length !== 1) return;
       const dx = Math.abs(e.touches[0].clientX - touchStartX);
       const dy = Math.abs(e.touches[0].clientY - touchStartY);
-      // If vertical movement is significant, allow scrolling
-      if (dy > 20 && dy > dx) {
-        isVerticalScroll = true;
-      }
+      if (dy > 25 && dy > dx) isVerticalSwipe = true;
     }, { passive: true });
     
     doc.addEventListener('touchend', (e) => {
       if (e.changedTouches.length !== 1) return;
-      
-      const touchEndX = e.changedTouches[0].clientX;
-      const touchEndY = e.changedTouches[0].clientY;
-      const dx = touchEndX - touchStartX;
-      const dy = touchEndY - touchStartY;
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const dx = endX - touchStartX;
+      const dy = endY - touchStartY;
       const dt = Date.now() - touchStartTime;
       const absDx = Math.abs(dx);
       const absDy = Math.abs(dy);
       
       // Horizontal swipe for page turn
-      if (!isVerticalScroll && dt < 500 && absDx > 60 && absDx > absDy * 1.5) {
+      if (!isVerticalSwipe && dt < 400 && absDx > 55 && absDx > absDy * 1.3) {
         e.preventDefault();
-        
-        // Debounce
         const now = Date.now();
-        if (now - lastSwipeTime < 350) return;
+        if (now - lastSwipeTime < 300) return;
         lastSwipeTime = now;
         
         if (dx < 0) {
-          // Swipe left -> next page
           flashArrow('right');
-          rendition.next().catch(err => {
-            if (err?.message?.includes('end')) {
-              showToast('📖 End of book');
-            }
-          });
+          rendition.next().catch(() => showToast('📖 End of book'));
         } else {
-          // Swipe right -> previous page
           flashArrow('left');
-          rendition.prev().catch(err => {
-            if (err?.message?.includes('start')) {
-              showToast('📖 Beginning of book');
-            }
-          });
+          rendition.prev().catch(() => showToast('📖 Beginning of book'));
         }
         return;
       }
       
-      // Quick tap toggles header (if not on interactive element)
-      if (dt < 250 && absDx < 15 && absDy < 15 && !isVerticalScroll) {
-        const tag = e.target?.tagName?.toUpperCase();
-        if (!['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'].includes(tag)) {
+      // Tap to toggle header (short tap, minimal movement)
+      if (dt < 250 && absDx < 20 && absDy < 20 && !isVerticalSwipe) {
+        const targetTag = e.target?.tagName?.toUpperCase();
+        if (!['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'].includes(targetTag)) {
           e.preventDefault();
           toggleHeader();
         }
       }
     }, { passive: false });
     
-    // Enable text selection for dictionary
-    doc.body.style.userSelect = 'text';
-    doc.body.style.webkitUserSelect = 'text';
-    
-    // Capture selection for dictionary
-    doc.addEventListener('mouseup', () => {
-      const sel = doc.getSelection?.()?.toString?.()?.trim();
-      if (sel && sel.length > 1 && sel.length < 50) {
-        selectedWord = sel.split(/\s+/)[0].replace(/[^\w'-]/g, '');
-      }
-    });
-    
-    // Long press for context menu (dictionary hint)
-    let longPressTimer;
-    doc.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1) {
-        longPressTimer = setTimeout(() => {
-          const sel = doc.getSelection?.()?.toString?.()?.trim();
-          if (sel && sel.length > 1) {
-            selectedWord = sel.split(/\s+/)[0].replace(/[^\w'-]/g, '');
-            if (selectedWord.length > 1) {
-              showToast(`📖 "${selectedWord}" - tap Define`);
-            }
-          }
-        }, 500);
-      }
-    }, { passive: true });
-    
-    doc.addEventListener('touchend', () => {
-      clearTimeout(longPressTimer);
-    });
-    
-    doc.addEventListener('touchmove', () => {
-      clearTimeout(longPressTimer);
-    }, { passive: true });
-    
     // Prevent context menu
     doc.addEventListener('contextmenu', (e) => e.preventDefault());
+    
+    // Store reference for dictionary
+    if (contents.window) currentContentWindow = contents.window;
   });
 }
 
@@ -803,83 +713,58 @@ function flashArrow(side) {
   }
 }
 
-// ---------- Progress tracking ----------
-function setupProgress() {
-  if (!book?.locations) return;
-  
-  // Generate locations in background
-  book.locations.generate(1800).catch(() => {});
-  
-  rendition.on('relocated', (location) => {
-    updateProgress(location);
-  });
-}
-
+// ---------- Progress ----------
 function updateProgress(location) {
   if (!book?.locations) return;
-  
   try {
     const cur = book.locations.locationFromCfi(location.start.cfi);
     const total = book.locations.total;
-    
     if (cur !== undefined && total && total > 0) {
       pageInfo.innerText = `📄 ${cur}/${total}`;
       progressBar.style.width = Math.min(100, (cur / total) * 100) + '%';
     }
-  } catch(e) {
-    // Progress update is non-critical
-  }
+  } catch(e) {}
 }
 
-// ---------- TOC (FIXED) ----------
+// ---------- TOC (nested working) ----------
 function buildTOC() {
   const container = $('tocContent');
   if (!container) return;
-  
   container.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner"></div><br>Loading...</div>';
-  
   if (!book?.navigation) {
-    container.innerHTML = '<p style="color:gray;text-align:center;padding:20px;">No navigation data available.</p>';
+    container.innerHTML = '<p style="color:gray;text-align:center;padding:20px;">No navigation data.</p>';
     return;
   }
-  
   book.loaded.navigation.then(nav => {
     container.innerHTML = '';
-    
     if (!nav.toc?.length) {
-      container.innerHTML = '<p style="color:gray;text-align:center;padding:20px;">No table of contents found in this book.</p>';
+      container.innerHTML = '<p style="color:gray;text-align:center;padding:20px;">No table of contents.</p>';
       return;
     }
-    
     function renderToc(items, parent, depth = 0) {
       items.forEach(item => {
         const row = document.createElement('div');
         row.className = 'toc-row';
         row.style.paddingLeft = (8 + depth * 18) + 'px';
-        
         const label = document.createElement('span');
         label.className = 'toc-label';
         label.textContent = item.label || 'Untitled';
-        
         const hasChildren = item.subitems?.length > 0;
-        
         if (hasChildren) {
           const expandBtn = document.createElement('button');
           expandBtn.className = 'toc-expand-btn';
-          expandBtn.type = 'button';
           expandBtn.textContent = '▶';
           expandBtn.onclick = (e) => {
             e.stopPropagation();
-            const children = row.nextElementSibling;
-            if (children?.classList) {
-              children.classList.toggle('open');
-              expandBtn.textContent = children.classList.contains('open') ? '▼' : '▶';
+            const childrenDiv = row.nextElementSibling;
+            if (childrenDiv?.classList) {
+              childrenDiv.classList.toggle('open');
+              expandBtn.textContent = childrenDiv.classList.contains('open') ? '▼' : '▶';
             }
           };
           row.appendChild(expandBtn);
           row.appendChild(label);
           parent.appendChild(row);
-          
           const childrenDiv = document.createElement('div');
           childrenDiv.className = 'toc-children';
           renderToc(item.subitems, childrenDiv, depth + 1);
@@ -887,473 +772,233 @@ function buildTOC() {
         } else {
           row.appendChild(label);
           parent.appendChild(row);
-          
           row.onclick = () => {
             if (item.href) {
-              rendition.display(item.href).then(() => {
-                closeAllPanels();
-                showToast('📍 Jumped to section');
-              }).catch(() => {
-                showToast('Error navigating');
-              });
+              rendition.display(item.href).then(() => { closeAllPanels(); showToast('📍 Jumped'); }).catch(() => showToast('Error'));
             }
           };
         }
       });
     }
-    
     renderToc(nav.toc, container, 0);
-    
-  }).catch(err => {
-    console.error('TOC error:', err);
-    container.innerHTML = '<p style="color:#b91c1c;text-align:center;padding:20px;">Error loading table of contents.</p>';
-  });
+  }).catch(() => container.innerHTML = '<p style="color:#b91c1c;text-align:center;">Error loading TOC</p>');
 }
 
-// ---------- SEARCH (PWA-optimized) ----------
+// ---------- SEARCH (fixed for PWA) ----------
 function hideSearch() {
   $('searchResults').classList.remove('visible');
   $('searchBackdrop').classList.remove('visible');
-  isSearching = false;
 }
-
-$('closeSearchBtn').onclick = (e) => { e.stopPropagation(); hideSearch(); };
-$('searchBackdrop').onclick = (e) => { if (e.target === $('searchBackdrop')) hideSearch(); };
+$('closeSearchBtn').onclick = hideSearch;
+$('searchBackdrop').onclick = hideSearch;
 $('searchBtn').onclick = doSearch;
-$('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); }});
-
-// Prevent search modal scroll from triggering gestures
-['searchList', 'searchResults'].forEach(id => {
-  const el = $(id);
-  if (el) {
-    el.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: false });
-  }
-});
+$('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } });
 
 async function doSearch() {
-  if (isSearching) return;
-  
   const query = $('searchInput').value.trim();
-  if (!query) { showToast('Enter a search term'); return; }
+  if (!query) { showToast('Enter a term'); return; }
   if (!book) { showToast('Open a book first'); return; }
-  
-  isSearching = true;
-  $('searchInput').blur();
   
   const resultsDiv = $('searchResults');
   const searchList = $('searchList');
   const countSpan = $('searchCount');
-  
   searchList.innerHTML = '<div style="text-align:center;padding:30px;"><div class="spinner"></div><br>Searching...</div>';
   resultsDiv.classList.add('visible');
   $('searchBackdrop').classList.add('visible');
   countSpan.innerText = '🔍 Searching...';
   
   try {
-    const spineItems = book.spine?.spineItems || [];
+    const spine = book.spine?.spineItems || [];
     let allResults = [];
-    
-    for (const item of spineItems) {
+    for (const item of spine) {
       try {
         await item.load(book.load.bind(book));
-        
         if (typeof item.find === 'function') {
           const found = await item.find(query);
           if (found?.length) {
-            allResults.push(...found.map(r => ({
-              cfi: r.cfi,
-              excerpt: r.excerpt || '',
-              label: item.label || 'Section'
-            })));
+            allResults.push(...found.map(r => ({ cfi: r.cfi, excerpt: r.excerpt || '', label: item.label || 'Section' })));
           }
         }
-      } catch(e) {
-        console.warn('Search item error:', e);
-      } finally {
-        try { item.unload(); } catch(_) {}
-      }
+      } catch(e) { console.warn(e); }
+      finally { try { item.unload(); } catch(_) {} }
     }
-    
     if (allResults.length === 0) {
       searchList.innerHTML = `<div style="padding:30px;text-align:center;color:gray;">😕 No matches for "${query}"</div>`;
       countSpan.innerText = '🔍 0 results';
       return;
     }
-    
     countSpan.innerText = `🔍 ${allResults.length} result${allResults.length !== 1 ? 's' : ''}`;
     searchList.innerHTML = '';
-    
     const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    
     allResults.forEach(res => {
       const div = document.createElement('div');
       div.className = 'result-item';
-      
       const excerpt = res.excerpt.length > 300 ? res.excerpt.slice(0, 300) + '…' : res.excerpt;
       const highlighted = excerpt.replace(regex, '<mark>$1</mark>');
-      
-      div.innerHTML = `
-        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">📍 ${res.label}</div>
-        <div class="result-excerpt">…${highlighted}…</div>
-      `;
-      
-      div.onclick = async () => {
-        try {
-          await rendition.display(res.cfi);
-          hideSearch();
-          showToast('📍 Jumped to result');
-        } catch(e) {
-          showToast('Error navigating');
-        }
-      };
-      
+      div.innerHTML = `<div style="font-size:12px;color:#64748b;margin-bottom:4px;">📍 ${res.label}</div><div class="result-excerpt">…${highlighted}…</div>`;
+      div.onclick = async () => { try { await rendition.display(res.cfi); hideSearch(); showToast('📍 Jumped'); } catch(e) { showToast('Error'); } };
       searchList.appendChild(div);
     });
-    
   } catch(err) {
-    console.error('Search error:', err);
-    searchList.innerHTML = '<div style="padding:30px;text-align:center;color:#b91c1c;">⚠️ Search failed. Try a simpler term.</div>';
+    console.error(err);
+    searchList.innerHTML = '<div style="padding:30px;text-align:center;color:#b91c1c;">⚠️ Search failed. Try simpler term.</div>';
     countSpan.innerText = '🔍 Error';
-  } finally {
-    isSearching = false;
   }
 }
 
-// ---------- DICTIONARY (PWA-compatible with fallback) ----------
+// ---------- DICTIONARY (fixed: gets selection directly) ----------
 async function lookupWord(word) {
   if (!word || word.length < 2) return null;
-  
   const cleanWord = word.replace(/[^\w'-]/g, '').toLowerCase();
   if (cleanWord.length < 2) return null;
-  
-  // Try primary API
   try {
-    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanWord)}`, {
-      headers: { 'Accept': 'application/json' },
-      mode: 'cors',
-      cache: 'force-cache'
-    });
-    
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        return data[0];
-      }
-    }
-  } catch(e) {
-    console.warn('Primary dictionary API failed:', e);
-  }
-  
-  // Fallback: simple definitions for common words
-  const fallbackDefs = {
-    'the': { word: 'the', phonetic: '/ðə, ði/', meanings: [{ partOfSpeech: 'article', definitions: [{ definition: 'Used to refer to a specific person or thing.' }] }] },
-    'and': { word: 'and', phonetic: '/ænd, ənd/', meanings: [{ partOfSpeech: 'conjunction', definitions: [{ definition: 'Used to connect words or phrases.' }] }] },
-    'book': { word: 'book', phonetic: '/bʊk/', meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'A written or printed work consisting of pages.' }] }] },
-    'read': { word: 'read', phonetic: '/riːd/', meanings: [{ partOfSpeech: 'verb', definitions: [{ definition: 'Look at and comprehend the meaning of written text.' }] }] }
-  };
-  
-  if (fallbackDefs[cleanWord]) {
-    return fallbackDefs[cleanWord];
-  }
-  
+    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanWord)}`, { mode: 'cors', cache: 'force-cache' });
+    if (res.ok) { const data = await res.json(); if (data?.length) return data[0]; }
+  } catch(e) { console.warn(e); }
   return null;
 }
 
+function getSelectedTextFromBook() {
+  if (!rendition) return '';
+  try {
+    const iframe = document.querySelector('#viewer iframe');
+    if (iframe?.contentWindow) {
+      const sel = iframe.contentWindow.getSelection();
+      return sel?.toString()?.trim() || '';
+    }
+    if (currentContentWindow) {
+      const sel = currentContentWindow.getSelection();
+      return sel?.toString()?.trim() || '';
+    }
+  } catch(e) { return ''; }
+  return '';
+}
+
 $('dictionaryBtn').onclick = async () => {
-  if (!selectedWord || selectedWord.length < 2) {
-    showToast('Select a word first (long-press or highlight text)');
-    return;
+  let selected = getSelectedTextFromBook();
+  if (!selected || selected.length < 2) {
+    if (window._lastSelectedWord) selected = window._lastSelectedWord;
+    else { showToast('Select a word first (long-press or double-tap text)'); return; }
   }
-  
+  const word = selected.split(/\s+/)[0].replace(/[^\w'-]/g, '');
+  if (word.length < 2) { showToast('Invalid selection'); return; }
   const popup = $('dictPopup');
   const content = $('dictContent');
-  
-  content.innerHTML = '<div class="spinner" style="margin:20px auto;"></div><div>Looking up "' + selectedWord + '"...</div>';
+  content.innerHTML = '<div class="spinner" style="margin:20px auto;"></div><div>Looking up "' + word + '"...</div>';
   popup.classList.add('open');
-  
   try {
-    const entry = await lookupWord(selectedWord);
-    
+    const entry = await lookupWord(word);
     if (!entry) {
-      content.innerHTML = `
-        <p style="color:#b91c1c;text-align:center;padding:20px;">
-          ⚠️ No definition found for "<strong>${selectedWord}</strong>"<br><br>
-          <small>• Check spelling<br>• Ensure internet connection<br>• Try a different word</small>
-        </p>
-      `;
+      content.innerHTML = `<p style="color:#b91c1c;text-align:center;">⚠️ No definition found for "<strong>${word}</strong>"</p>`;
       return;
     }
-    
     let html = `<div class="dict-word">📖 ${entry.word}</div>`;
-    if (entry.phonetic) html += `<div style="color:#2563eb;font-family:monospace;">/${entry.phonetic}/</div>`;
-    
+    if (entry.phonetic) html += `<div style="color:#2563eb;">/${entry.phonetic}/</div>`;
     if (entry.meanings?.length) {
       entry.meanings.slice(0, 3).forEach(m => {
-        html += `<div style="margin-top:16px;padding-top:12px;border-top:1px solid #e2e8f0;">
-          <strong style="color:#2563eb;">${m.partOfSpeech}</strong>
-        </div>`;
-        
+        html += `<div style="margin-top:16px;padding-top:12px;border-top:1px solid #e2e8f0;"><strong style="color:#2563eb;">${m.partOfSpeech}</strong></div>`;
         m.definitions.slice(0, 3).forEach((d, i) => {
           html += `<div class="dict-def"><strong>${i+1}.</strong> ${d.definition}</div>`;
-          if (d.example) {
-            html += `<div style="font-style:italic;color:#64748b;margin-left:20px;">"${d.example}"</div>`;
-          }
+          if (d.example) html += `<div style="font-style:italic;color:#64748b;margin-left:20px;">"${d.example}"</div>`;
         });
-        
-        if (m.synonyms?.length) {
-          html += `<div style="font-size:13px;color:#64748b;margin-top:8px;">Synonyms: ${m.synonyms.slice(0, 5).join(', ')}</div>`;
-        }
+        if (m.synonyms?.length) html += `<div style="font-size:13px;color:#64748b;margin-top:8px;">Synonyms: ${m.synonyms.slice(0,5).join(', ')}</div>`;
       });
     }
-    
     content.innerHTML = html;
-    
-  } catch(e) {
-    console.error('Dictionary error:', e);
-    content.innerHTML = `<p style="color:#b91c1c;text-align:center;">⚠️ Error loading definition</p>`;
-  }
+  } catch(e) { content.innerHTML = `<p style="color:#b91c1c;">⚠️ Error loading definition</p>`; }
 };
+$('closeDictBtn').onclick = () => $('dictPopup').classList.remove('open');
 
-$('closeDictBtn').onclick = () => {
-  $('dictPopup').classList.remove('open');
-  selectedWord = '';
-};
-
-// Swipe-down to close dictionary
+// Sheet drag to close
 const dictSheet = $('dictPopup');
 let dictStartY = 0, dictStartScroll = 0;
-
-dictSheet.addEventListener('touchstart', (e) => {
-  if (e.touches.length === 1) {
-    dictStartY = e.touches[0].clientY;
-    dictStartScroll = dictSheet.scrollTop;
-  }
-}, { passive: true });
-
+dictSheet.addEventListener('touchstart', (e) => { if (e.touches.length === 1) { dictStartY = e.touches[0].clientY; dictStartScroll = dictSheet.scrollTop; } }, { passive: true });
 dictSheet.addEventListener('touchend', (e) => {
   if (e.changedTouches.length === 1) {
     const endY = e.changedTouches[0].clientY;
-    if (endY - dictStartY > 80 && dictStartScroll === 0) {
-      $('dictPopup').classList.remove('open');
-      selectedWord = '';
-    }
+    if (endY - dictStartY > 70 && dictStartScroll === 0) $('dictPopup').classList.remove('open');
   }
 });
 
-// Handle drag handle
-$('.dict-handle')?.addEventListener('touchend', (e) => {
-  const endY = e.changedTouches[0].clientY;
-  if (endY - dictStartY > 40) {
-    $('dictPopup').classList.remove('open');
-    selectedWord = '';
-  }
-});
-
-// ---------- BOOKMARKS ----------
+// ---------- BOOKMARKS (nested navigation fixed: proper CFI) ----------
 $('addBookmarkBtn').onclick = () => {
   if (!rendition || !currentBookKey) { showToast('Open a book first'); return; }
-  
   const loc = rendition.currentLocation();
-  if (!loc?.start?.cfi) { showToast('Cannot bookmark this location'); return; }
-  
+  if (!loc?.start?.cfi) { showToast('Cannot bookmark'); return; }
   const cfi = loc.start.cfi;
   let bm = [];
   try { bm = JSON.parse(localStorage.getItem(currentBookKey) || '[]'); } catch(e) { bm = []; }
-  
   if (!bm.includes(cfi)) {
     bm.push(cfi);
     localStorage.setItem(currentBookKey, JSON.stringify(bm));
     updateBookmarkPanel();
     showToast('📌 Bookmark added');
-  } else {
-    showToast('Already bookmarked');
-  }
+  } else showToast('Already bookmarked');
 };
-
 $('bookmarkPanelBtn').onclick = () => { updateBookmarkPanel(); openPanel('bookmarkPanel'); };
 
 function updateBookmarkPanel() {
   const container = $('bookmarkContent');
-  if (!container) return;
-  
   let bm = [];
   try { bm = JSON.parse(localStorage.getItem(currentBookKey) || '[]'); } catch(e) { bm = []; }
-  
   container.innerHTML = '';
-  
-  if (!bm.length) {
-    container.innerHTML = '<p style="color:gray;text-align:center;padding:20px;">No bookmarks yet.<br>Tap 🔖+ while reading to add one.</p>';
-    return;
-  }
-  
+  if (!bm.length) { container.innerHTML = '<p style="color:gray;text-align:center;padding:20px;">No bookmarks yet.<br>Tap 🔖+ while reading.</p>'; return; }
   bm.forEach((cfi, idx) => {
     const row = document.createElement('div');
     row.className = 'bm-row';
     row.innerHTML = `<span class="bm-label">🔖 Bookmark ${idx+1}</span><button class="bm-del" type="button">✕</button>`;
-    
-    row.querySelector('.bm-label').onclick = (e) => {
-      e.stopPropagation();
-      rendition.display(cfi).then(() => { closeAllPanels(); }).catch(() => showToast('Error navigating'));
-    };
-    
-    row.querySelector('.bm-del').onclick = (e) => {
-      e.stopPropagation();
-      let arr = JSON.parse(localStorage.getItem(currentBookKey) || '[]');
-      arr = arr.filter(c => c !== cfi);
-      localStorage.setItem(currentBookKey, JSON.stringify(arr));
-      updateBookmarkPanel();
-      showToast('🗑️ Removed');
-    };
-    
+    row.querySelector('.bm-label').onclick = (e) => { e.stopPropagation(); rendition.display(cfi).then(() => closeAllPanels()).catch(() => showToast('Error')); };
+    row.querySelector('.bm-del').onclick = (e) => { e.stopPropagation(); let arr = JSON.parse(localStorage.getItem(currentBookKey) || '[]'); arr = arr.filter(c => c !== cfi); localStorage.setItem(currentBookKey, JSON.stringify(arr)); updateBookmarkPanel(); showToast('🗑️ Removed'); };
     container.appendChild(row);
   });
 }
 
-// ---------- Font & Navigation ----------
-$('fontPlus').onclick = () => {
-  if (rendition) {
-    currentFont = Math.min(currentFont + 10, 220);
-    rendition.themes.fontSize(currentFont + '%');
-    localStorage.setItem('epub-font-size', currentFont);
-    showToast(`${currentFont}%`);
-  }
-};
+// Font & nav
+$('fontPlus').onclick = () => { if (rendition) { currentFont = Math.min(currentFont + 10, 220); rendition.themes.fontSize(currentFont + '%'); localStorage.setItem('epub-font-size', currentFont); showToast(`${currentFont}%`); } };
+$('fontMinus').onclick = () => { if (rendition) { currentFont = Math.max(currentFont - 10, 70); rendition.themes.fontSize(currentFont + '%'); localStorage.setItem('epub-font-size', currentFont); showToast(`${currentFont}%`); } };
+$('prev').onclick = () => { if (rendition) { flashArrow('left'); rendition.prev().catch(() => showToast('Start')); } };
+$('next').onclick = () => { if (rendition) { flashArrow('right'); rendition.next().catch(() => showToast('End')); } };
+document.addEventListener('keydown', (e) => { if (!rendition) return; if (e.key === 'ArrowLeft') { e.preventDefault(); flashArrow('left'); rendition.prev(); } if (e.key === 'ArrowRight') { e.preventDefault(); flashArrow('right'); rendition.next(); } if (e.key === 'Escape') { closeAllPanels(); hideSearch(); $('dictPopup').classList.remove('open'); } });
 
-$('fontMinus').onclick = () => {
-  if (rendition) {
-    currentFont = Math.max(currentFont - 10, 70);
-    rendition.themes.fontSize(currentFont + '%');
-    localStorage.setItem('epub-font-size', currentFont);
-    showToast(`${currentFont}%`);
-  }
-};
-
-$('prev').onclick = () => {
-  if (rendition) {
-    flashArrow('left');
-    rendition.prev().catch(() => showToast('Already at beginning'));
-  }
-};
-
-$('next').onclick = () => {
-  if (rendition) {
-    flashArrow('right');
-    rendition.next().catch(() => showToast('Already at end'));
-  }
-};
-
-// Keyboard support
-document.addEventListener('keydown', (e) => {
-  if (!rendition) return;
-  if (e.key === 'ArrowLeft') { e.preventDefault(); flashArrow('left'); rendition.prev().catch(() => {}); }
-  if (e.key === 'ArrowRight') { e.preventDefault(); flashArrow('right'); rendition.next().catch(() => {}); }
-  if (e.key === 'Escape') { closeAllPanels(); hideSearch(); $('dictPopup').classList.remove('open'); }
-});
-
-// ---------- Load EPUB ----------
+// Load EPUB
 async function loadEpubFile(file) {
   showLoading('Opening book...');
   bookLoaded = false;
-  
-  // Cleanup previous
   if (rendition) { try { rendition.destroy(); } catch(_) {} rendition = null; }
   if (book) { try { book.destroy(); } catch(_) {} book = null; }
-  
   try {
     book = ePub(file);
-    
-    rendition = book.renderTo('viewer', {
-      width: '100%',
-      height: '100%',
-      allowScriptedContent: false,
-      snap: true,
-      flow: 'paginated'
-    });
-    
-    // Themes
+    rendition = book.renderTo('viewer', { width: '100%', height: '100%', allowScriptedContent: false, snap: true, flow: 'paginated' });
     rendition.themes.register('light', { body: { background: '#fff', color: '#1e293b', 'line-height': '1.6' } });
     rendition.themes.register('dark', { body: { background: '#0f172a', color: '#e2e8f0', 'line-height': '1.6' } });
     rendition.themes.register('sepia', { body: { background: '#fef7e0', color: '#5e3a1c', 'line-height': '1.6' } });
-    
     rendition.themes.select(currentTheme);
     rendition.themes.fontSize(currentFont + '%');
-    
-    // Setup swipe navigation
-    setupSwipeNavigation();
-    
-    // Progress
-    setupProgress();
-    
-    // Display book
+    setupGestures();
+    rendition.on('relocated', updateProgress);
     await rendition.display();
-    
-    // TOC
+    book.locations.generate(1800).catch(() => {});
     buildTOC();
-    
-    // Bookmarks
     const meta = await book.loaded.metadata;
     currentBookKey = 'epub-bm-' + (meta?.identifier?.replace(/[^\w-]/g, '_') || file.name.replace(/[^\w.-]/g, '_'));
     updateBookmarkPanel();
-    
     bookLoaded = true;
     hideLoading();
-    showToast('✨ Book loaded! Swipe ← → to turn pages, tap to toggle menu');
-    
-  } catch(err) {
-    console.error('Load error:', err);
-    hideLoading();
-    showToast('❌ Failed: ' + (err.message || 'Unknown error'));
-  }
+    showToast('✅ Book ready! Swipe ← →, tap to toggle menu');
+  } catch(err) { hideLoading(); showToast('❌ Failed: ' + (err.message || 'Unknown')); }
 }
+$('fileInput').addEventListener('change', async (e) => { if (e.target.files[0]) { await loadEpubFile(e.target.files[0]); e.target.value = ''; } });
 
-$('fileInput').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (file) {
-    await loadEpubFile(file);
-    e.target.value = '';
-  }
-});
-
-// ---------- PWA Install ----------
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW error:', e));
-  });
-}
-
+// PWA Install
 let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  $('installBtn').style.display = 'flex';
-});
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; $('installBtn').style.display = 'flex'; });
+$('installBtn')?.addEventListener('click', async () => { if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; if (outcome === 'accepted') showToast('✅ Installed!'); $('installBtn').style.display = 'none'; deferredPrompt = null; } });
 
-$('installBtn')?.addEventListener('click', async () => {
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    try {
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') showToast('✅ Installed!');
-    } catch(e) {}
-    $('installBtn').style.display = 'none';
-    deferredPrompt = null;
-  }
-});
-
-// ---------- Init ----------
 $('tocBtn').onclick = () => { buildTOC(); openPanel('tocPanel'); };
-
-window.closeAllPanels = closeAllPanels;
 window.addEventListener('resize', () => { if (rendition) setTimeout(() => rendition.resize(), 100); });
-
 hideLoading();
-showToast('✨ epubSwan ready — swipe ← → to navigate, tap to toggle menu');
-
-// Demo hint
-if (!localStorage.getItem('epub-hint-shown')) {
-  setTimeout(() => showToast('💡 Tip: Long-press a word, then tap "Define"'), 3500);
-  localStorage.setItem('epub-hint-shown', 'true');
-}
+showToast('✨ epubSwan ready — swipe pages, tap to toggle menu');
+if (!localStorage.getItem('epub-hint-shown')) { setTimeout(() => showToast('💡 Tip: long-press a word, then tap "Define"'), 3500); localStorage.setItem('epub-hint-shown', 'true'); }
 </script>
 </body>
 </html>
