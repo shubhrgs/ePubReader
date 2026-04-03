@@ -2,489 +2,762 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>epubSwan™</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>epubSwan™ · Touch Reader</title>
 
-<!-- 🔧 PWA META TAGS (FIXED) -->
+<!-- PWA & Home screen -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2563eb">
-<!-- iOS/iPadOS Home Screen Icons -->
-<link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="152x152" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="120x120" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- iOS: Prevent zoom on input focus -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-192.png">
 
+<!-- Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
 
 <style>
-body{
-    margin:0;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    background:#f4f4f4;
-    color:#222;
-    transition:.3s;
+* {
+    user-select: none; /* improves touch feel, but text selection still works via epubjs */
     -webkit-tap-highlight-color: transparent;
 }
-header{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap;
-    justify-content:center;
-    padding:10px;
-    background:white;
-    box-shadow:0 2px 8px rgba(0,0,0,0.08);
-    position: sticky;
-    top: 0;
-    z-index: 100;
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f4f4f4;
+    transition: background 0.2s, color 0.2s;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
-button,label,select,input{
-    padding:8px 12px;
-    border:none;
-    border-radius:6px;
-    background:#2563eb;
-    color:white;
-    cursor:pointer;
+
+/* ===== HIDEABLE TOP BAR (HEADER + PROGRESS) ===== */
+.top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+    transform: translateY(0);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+}
+
+body.header-hidden .top-bar {
+    transform: translateY(-100%);
+}
+
+/* header container */
+.reader-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 12px;
+    background: white;
+    backdrop-filter: blur(0px);
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+#progressBarContainer {
+    height: 3px;
+    background: #e2e8f0;
+    width: 100%;
+    position: relative;
+}
+
+#progressBar {
+    height: 100%;
+    width: 0%;
+    background: #2563eb;
+    transition: width 0.2s;
+}
+
+/* buttons & controls */
+button, label, select, input {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 40px;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: 0.1s ease;
+    touch-action: manipulation;
+}
+
+button:active, label:active {
+    transform: scale(0.96);
+    opacity: 0.8;
+}
+
+input, select {
+    background: white;
+    color: #1e293b;
+    border: 1px solid #cbd5e1;
+}
+
+#fileInput { display: none; }
+
+/* viewer takes full area */
+#viewer {
+    flex: 1;
+    position: relative;
+    height: 100vh;
+    width: 100%;
+    background: #fff;
+    touch-action: pan-y pinch-zoom; /* allows vertical scroll but swipe detection overridden */
+}
+
+/* PANELS (TOC + BOOKMARKS) */
+.panel {
+    position: fixed;
+    top: 0;
+    left: -380px;
+    width: 85%;
+    max-width: 360px;
+    height: 100%;
+    background: white;
+    box-shadow: 4px 0 30px rgba(0,0,0,0.2);
+    transition: left 0.25s ease-out;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    font-size: 16px;
+}
+
+.panel.open { left: 0; }
+
+.panelHeader {
+    padding: 18px 16px;
+    background: #2563eb;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.panelContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 8px;
+}
+
+/* nested TOC styles */
+.toc-item {
+    margin: 4px 0;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: background 0.1s;
+}
+.toc-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 8px;
+    gap: 8px;
+}
+.toc-title {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.toc-toggle {
+    background: transparent;
+    color: #2563eb;
+    font-size: 18px;
+    padding: 4px 8px;
+    min-width: 36px;
+}
+.toc-children {
+    margin-left: 20px;
+    border-left: 2px dashed #cbd5e1;
+    display: none;
+}
+.toc-children.open { display: block; }
+
+/* bookmark items */
+.bookmark-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid #eef2ff;
+    border-radius: 12px;
+    margin: 4px 0;
+    background: #f8fafc;
+}
+
+/* search results floating panel */
+#searchResults {
+    position: fixed;
+    bottom: 20px;
+    left: 12px;
+    right: 12px;
+    max-height: 55vh;
+    background: white;
+    border-radius: 24px;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.3);
+    z-index: 1100;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(0,0,0,0.08);
+}
+.searchHeader {
+    display: flex;
+    justify-content: space-between;
+    padding: 16px;
+    font-weight: bold;
+    background: #2563eb;
+    color: white;
+    font-size: 16px;
+}
+.resultItem {
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: 0.05s linear;
     font-size: 14px;
 }
-input[type="text"]{
-    background:white;
-    color:black;
-    min-width: 150px;
-}
-#fileInput{display:none;}
-#viewer{height:calc(100vh - 100px);}
-#progressBarContainer{height:4px;background:#ddd;}
-#progressBar{height:100%;width:0;background:#2563eb;transition:.2s;}
-#pageInfo{font-weight:600; align-self: center;}
+.resultItem:active { background: #dbeafe; }
 
-.panel{
-    position:fixed;
-    top:0;
-    left:-350px;
-    width:320px;
-    height:100%;
-    background:white;
-    box-shadow:0 0 20px rgba(0,0,0,0.3);
-    transition:left .3s;
-    z-index:1000;
-    display:flex;
-    flex-direction:column;
-}
-.panel.open{left:0;}
-.panelHeader{
-    padding:12px;
-    background:#2563eb;
-    color:white;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-}
-.panelContent{
-    flex:1;
-    overflow:auto;
-    padding:10px;
-}
-.item{
-    padding:6px;
-    border-radius:6px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-}
-.item span{
-    cursor:pointer;
-}
-.item:hover{background:#f0f0f0;}
-
-#searchResults{
-    position:fixed;
-    right:10px;
-    top:120px;
-    width:350px;
-    max-height:60vh;
-    overflow:auto;
-    background:white;
-    border-radius:12px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.3);
-    padding:10px;
-    display:none;
-    z-index:2000;
-}
-.searchHeader{
-    display:flex;
-    justify-content:space-between;
-    font-weight:bold;
-    margin-bottom:10px;
-}
-.resultItem{
-    padding:6px;
-    border-radius:6px;
-    cursor:pointer;
-}
-.resultItem:hover{background:#f0f0f0;}
-
-#popup{
-    position:fixed;
-    bottom:20px;
-    left:50%;
-    transform:translateX(-50%);
-    background:white;
-    padding:15px;
-    border-radius:12px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.3);
-    display:none;
-    max-width:500px;
-    z-index: 3000;
+/* dictionary popup */
+#popup {
+    position: fixed;
+    bottom: 30px;
+    left: 16px;
+    right: 16px;
+    background: white;
+    padding: 20px;
+    border-radius: 28px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+    display: none;
+    z-index: 1200;
+    font-size: 15px;
+    line-height: 1.4;
 }
 
-.darkUI{
-    background:#111;
-    color:#eee;
+/* DARK MODE adjustments */
+body.darkUI {
+    background: #121212;
 }
-.darkUI header{background:#1c1c1c;}
-.darkUI .panel{background:#1c1c1c;color:#eee;}
-.darkUI .item:hover,
-.darkUI .resultItem:hover{background:#333;}
-.darkUI #searchResults{background:#1c1c1c;color:#eee;}
+body.darkUI .top-bar .reader-header {
+    background: #1e1e2f;
+    border-bottom-color: #2d2d3a;
+}
+body.darkUI .panel {
+    background: #1e1e2f;
+    color: #e2e8f0;
+}
+body.darkUI .toc-children {
+    border-left-color: #3b3b4f;
+}
+body.darkUI .bookmark-item {
+    background: #2a2a3a;
+}
+body.darkUI .resultItem {
+    border-bottom-color: #2d2d3a;
+}
+body.darkUI .resultItem:active { background: #2d3a5e; }
 
-/* Mobile optimizations */
-@media (max-width: 768px) {
-    header { padding: 8px; gap: 6px; }
-    button, label, select, input { padding: 6px 10px; font-size: 13px; }
-    #searchResults { width: calc(100% - 20px); right: 10px; top: 100px; }
-    .panel { width: 100%; left: -100%; }
+/* swipe hint (optional) */
+.swipe-hint {
+    position: fixed;
+    bottom: 20px;
+    right: 16px;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 30px;
+    pointer-events: none;
+    z-index: 90;
+    backdrop-filter: blur(4px);
+    opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+    button, label, select, input { padding: 6px 12px; font-size: 12px; }
+    .reader-header { gap: 6px; }
+    .toc-title { font-size: 14px; }
 }
 </style>
 </head>
 <body>
 
-<header>
-<label for="fileInput">📚 Load EPUB</label>
-<input type="file" id="fileInput" accept=".epub">
+<div class="top-bar">
+    <div class="reader-header">
+        <label for="fileInput">📖 Load EPUB</label>
+        <input type="file" id="fileInput" accept=".epub">
+        <button id="prevBtn">◀ Prev</button>
+        <button id="nextBtn">Next ▶</button>
+        <button id="tocBtn">📑 TOC</button>
+        <button id="addBookmarkBtn">🔖 Add</button>
+        <button id="bookmarkPanelBtn">📋 List</button>
+        <button id="dictionaryBtn">📖 Dict</button>
+        <button id="fontPlus">A+</button>
+        <button id="fontMinus">A-</button>
+        <select id="themeSelect">
+            <option value="light">☀️ Light</option>
+            <option value="dark">🌙 Dark</option>
+            <option value="sepia">📜 Sepia</option>
+        </select>
+        <input type="text" id="searchInput" placeholder="🔍 Search...">
+        <button id="searchBtn">Go</button>
+        <span id="pageInfo"></span>
+    </div>
+    <div id="progressBarContainer"><div id="progressBar"></div></div>
+</div>
 
-<button id="prev">◀ Prev</button>
-<button id="next">Next ▶</button>
-
-<button id="tocBtn">📑 TOC</button>
-
-<button id="addBookmarkBtn">🔖 Add</button>
-<button id="bookmarkPanelBtn">🔖 List</button>
-
-<button id="dictionaryBtn">📖 Dictionary</button>
-
-<button id="fontPlus">A+</button>
-<button id="fontMinus">A-</button>
-
-<select id="themeSelect">
-<option value="light">☀️ Light</option>
-<option value="dark">🌙 Dark</option>
-<option value="sepia">📜 Sepia</option>
-</select>
-
-<input type="text" id="searchInput" placeholder="🔍 Search...">
-<button id="searchBtn">Go</button>
-
-<span id="pageInfo"></span>
-</header>
-
-<div id="progressBarContainer"><div id="progressBar"></div></div>
 <div id="viewer"></div>
 
+<!-- TOC Panel -->
 <div id="tocPanel" class="panel">
-<div class="panelHeader">
-<span>📑 Table of Contents</span>
-<button onclick="togglePanel('tocPanel')">✕</button>
-</div>
-<div id="tocContent" class="panelContent"></div>
+    <div class="panelHeader"><span>📚 Table of Contents</span><button id="closeTocBtn">✕</button></div>
+    <div id="tocContent" class="panelContent"></div>
 </div>
 
+<!-- Bookmarks Panel -->
 <div id="bookmarkPanel" class="panel">
-<div class="panelHeader">
-<span>🔖 Bookmarks</span>
-<button onclick="togglePanel('bookmarkPanel')">✕</button>
-</div>
-<div id="bookmarkContent" class="panelContent"></div>
+    <div class="panelHeader"><span>🔖 Bookmarks</span><button id="closeBookmarkBtn">✕</button></div>
+    <div id="bookmarkContent" class="panelContent"></div>
 </div>
 
 <div id="searchResults"></div>
 <div id="popup"></div>
+<div class="swipe-hint">👈 Swipe left/right to turn pages</div>
 
 <script>
+// ------------------- GLOBALS -------------------
 let book, rendition;
-let currentFont = 100;
-let selectedWord = "";
-let currentBookKey = "";
-
-// ---------- THEME HANDLING ----------
+let currentFontPercent = 100;
 let currentTheme = localStorage.getItem("epub-theme") || "light";
+let currentBookKey = "";
+let isHeaderVisible = true;
 
-function registerThemes() {
-    rendition.themes.register("light",  {"html, body": {background: "#fff", color: "#000"}});
-    rendition.themes.register("dark",   {"html, body": {background: "#111", color: "#eee"}});
-    rendition.themes.register("sepia",  {"html, body": {background: "#f4ecd8", color: "#5b4636"}});
+// DOM elements
+const viewerDiv = document.getElementById("viewer");
+const headerContainer = document.querySelector(".top-bar");
+const searchResultsDiv = document.getElementById("searchResults");
+const popupDiv = document.getElementById("popup");
+
+// ---------- HEADER TOGGLE (tap on reading area) ----------
+function toggleHeader() {
+    isHeaderVisible = !isHeaderVisible;
+    document.body.classList.toggle("header-hidden", !isHeaderVisible);
 }
 
+// attach click inside iframe to toggle header (via content hook)
+function attachHeaderToggleToIframe() {
+    if (!rendition) return;
+    rendition.hooks.content.register((doc, win) => {
+        const body = doc.body;
+        if (!body) return;
+        // avoid double listeners
+        if (body.hasAttribute("data-swan-toggle")) return;
+        body.setAttribute("data-swan-toggle", "true");
+        body.style.cursor = "pointer";
+        body.addEventListener("click", (e) => {
+            // prevent toggling when clicking on interactive elements like links? but that's fine — intuitive.
+            e.stopPropagation();
+            toggleHeader();
+        });
+        // also enable swipe detection inside iframe (will be handled globally via touch, but extra safety)
+    });
+}
+
+// ---------- SWIPE LEFT/RIGHT (touch on viewer content) ----------
+let touchStartX = 0, touchStartY = 0;
+let touchMoved = false;
+
+function initSwipeDetection() {
+    if (!rendition) return;
+    rendition.hooks.content.register((doc, win) => {
+        const iframeBody = doc.body;
+        if (!iframeBody) return;
+        iframeBody.addEventListener("touchstart", (e) => {
+            touchStartX = e.changedTouches[0].clientX;
+            touchStartY = e.changedTouches[0].clientY;
+            touchMoved = false;
+        }, { passive: false });
+        
+        iframeBody.addEventListener("touchmove", (e) => {
+            if (!touchStartX) return;
+            const deltaX = e.changedTouches[0].clientX - touchStartX;
+            const deltaY = e.changedTouches[0].clientY - touchStartY;
+            if (Math.abs(deltaX) > 15 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                touchMoved = true;
+                e.preventDefault();  // prevent vertical scroll while swiping horizontally
+            }
+        }, { passive: false });
+        
+        iframeBody.addEventListener("touchend", (e) => {
+            if (!touchStartX || !touchMoved) {
+                touchStartX = 0;
+                return;
+            }
+            const deltaX = e.changedTouches[0].clientX - touchStartX;
+            if (Math.abs(deltaX) > 50) {
+                if (deltaX > 0) {
+                    // swipe right -> previous page
+                    rendition.prev();
+                } else {
+                    // swipe left -> next page
+                    rendition.next();
+                }
+                // provide haptic-like feel (optional)
+                if (navigator.vibrate) navigator.vibrate(20);
+            }
+            touchStartX = 0;
+            touchMoved = false;
+        });
+    });
+}
+
+// ---------- THEME ENGINE ----------
+function registerThemes() {
+    if (!rendition) return;
+    rendition.themes.register("light",  { "html, body": { background: "#ffffff", color: "#1e293b" } });
+    rendition.themes.register("dark",   { "html, body": { background: "#121212", color: "#e2e8f0" } });
+    rendition.themes.register("sepia",  { "html, body": { background: "#fbf7e9", color: "#5b4636" } });
+}
 function setTheme(theme) {
     currentTheme = theme;
     localStorage.setItem("epub-theme", theme);
     document.body.classList.toggle("darkUI", theme === "dark");
     document.getElementById("themeSelect").value = theme;
-    if (rendition) {
-        rendition.themes.select(theme);
-    }
+    if (rendition) rendition.themes.select(theme);
 }
-
 function attachThemeHook() {
-    rendition.hooks.content.register((doc, data) => {
-        rendition.themes.select(currentTheme);
-    });
+    rendition.hooks.content.register(() => { rendition.themes.select(currentTheme); });
 }
 
-// ---------- LOAD EPUB ----------
-document.getElementById("fileInput").addEventListener("change", e => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (rendition) { rendition.destroy(); }
-
-    book = ePub(file);
-    rendition = book.renderTo("viewer", { width: "100%", height: "100%" });
-
-    registerThemes();
-    attachThemeHook();
-    setTheme(currentTheme);
-
-    rendition.display();
-
-    buildTOC();
-    setupLocations();
-    enableSelection();
-
-    book.ready.then(() => {
-        const id = book.package.metadata.identifier || file.name;
-        currentBookKey = "epub-bookmarks-" + id;
-        updateBookmarkPanel();
-    });
-});
-
-// ---------- NAVIGATION ----------
-document.getElementById("prev").onclick = () => rendition && rendition.prev();
-document.getElementById("next").onclick = () => rendition && rendition.next();
-
-// ---------- FONT ----------
-document.getElementById("fontPlus").onclick = () => {
-    currentFont = Math.min(currentFont + 10, 200);
-    rendition.themes.fontSize(currentFont + "%");
-};
-document.getElementById("fontMinus").onclick = () => {
-    currentFont = Math.max(currentFont - 10, 80);
-    rendition.themes.fontSize(currentFont + "%");
-};
-
-// ---------- THEME SELECT ----------
-document.getElementById("themeSelect").onchange = e => setTheme(e.target.value);
-
-// ---------- PROGRESS ----------
-function setupLocations() {
-    book.ready.then(() => book.locations.generate(1600)).then(() => {
-        const total = book.locations.total;
-        rendition.on("relocated", loc => {
-            const current = book.locations.locationFromCfi(loc.start.cfi);
-            if (current && total) {
-                document.getElementById("pageInfo").textContent = `📄 ${current} / ${total}`;
-                document.getElementById("progressBar").style.width = ((current / total) * 100) + "%";
+// ---------- TOC with NESTED (2nd level + more) ----------
+function buildNestedTOC(navItems, level = 0) {
+    const container = document.createElement("div");
+    navItems.forEach(item => {
+        const hasChildren = item.children && item.children.length > 0;
+        const itemDiv = document.createElement("div");
+        itemDiv.className = "toc-item";
+        
+        const row = document.createElement("div");
+        row.className = "toc-row";
+        row.style.paddingLeft = `${12 + level * 16}px`;
+        
+        const titleSpan = document.createElement("span");
+        titleSpan.className = "toc-title";
+        titleSpan.innerText = item.label || "Untitled";
+        
+        const clickArea = document.createElement("div");
+        clickArea.style.flex = "1";
+        clickArea.appendChild(titleSpan);
+        clickArea.style.cursor = "pointer";
+        clickArea.onclick = (e) => {
+            e.stopPropagation();
+            if (item.href) {
+                rendition.display(item.href);
+                closeAllPanels();
             }
-        });
+        };
+        row.appendChild(clickArea);
+        
+        if (hasChildren) {
+            const toggleBtn = document.createElement("button");
+            toggleBtn.innerText = "▼";
+            toggleBtn.className = "toc-toggle";
+            toggleBtn.style.background = "transparent";
+            toggleBtn.style.color = "#2563eb";
+            toggleBtn.style.fontSize = "14px";
+            let childrenOpen = false;
+            const childrenDiv = document.createElement("div");
+            childrenDiv.className = "toc-children";
+            const childContainer = buildNestedTOC(item.children, level + 1);
+            childrenDiv.appendChild(childContainer);
+            
+            toggleBtn.onclick = (e) => {
+                e.stopPropagation();
+                childrenOpen = !childrenOpen;
+                childrenDiv.classList.toggle("open", childrenOpen);
+                toggleBtn.innerText = childrenOpen ? "▲" : "▼";
+            };
+            row.appendChild(toggleBtn);
+            itemDiv.appendChild(row);
+            itemDiv.appendChild(childrenDiv);
+        } else {
+            itemDiv.appendChild(row);
+        }
+        container.appendChild(itemDiv);
     });
+    return container;
 }
 
-// ---------- TOC ----------
-function togglePanel(id) {
-    document.getElementById(id).classList.toggle("open");
-}
-document.getElementById("tocBtn").onclick = () => togglePanel("tocPanel");
-function buildTOC() {
+function buildTOCFromNav() {
+    if (!book) return;
     book.loaded.navigation.then(nav => {
-        const toc = document.getElementById("tocContent");
-        toc.innerHTML = "";
-        nav.toc.forEach(ch => {
-            const div = document.createElement("div");
-            div.className = "item";
-            div.innerHTML = `<span>📖 ${ch.label}</span>`;
-            div.onclick = () => { rendition.display(ch.href); togglePanel("tocPanel"); };
-            toc.appendChild(div);
-        });
+        const tocContainer = document.getElementById("tocContent");
+        tocContainer.innerHTML = "";
+        if (nav.toc && nav.toc.length) {
+            const nestedTree = buildNestedTOC(nav.toc, 0);
+            tocContainer.appendChild(nestedTree);
+        } else {
+            tocContainer.innerHTML = "<p style='padding:16px'>No table of contents.</p>";
+        }
+    }).catch(() => {
+        document.getElementById("tocContent").innerHTML = "<p>Unable to load TOC</p>";
     });
 }
 
-// ---------- SEARCH ----------
-document.getElementById("searchBtn").onclick = () => {
-    const q = document.getElementById("searchInput").value.trim();
-    if (!q) return;
-
-    const container = document.getElementById("searchResults");
-    container.innerHTML = `<div class="searchHeader">🔍 Results <button onclick="document.getElementById('searchResults').style.display='none'">✕</button></div><p>Searching...</p>`;
-    container.style.display = "block";
-
-    let results = [];
-    let spine = book.spine.spineItems;
-    let done = 0;
-
-    spine.forEach(item => {
-        item.load(book.load.bind(book)).then(() => {
-            try {
-                const doc = item.document;
-                const cfiBase = item.cfiBase;
-                const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, {
-                    acceptNode: (node) => {
-                        if (node.textContent.toLowerCase().includes(q.toLowerCase()))
-                            return NodeFilter.FILTER_ACCEPT;
-                        return NodeFilter.FILTER_SKIP;
-                    }
-                });
-                const firstTextNode = walker.nextNode();
-                if (firstTextNode) {
-                    const text = firstTextNode.textContent;
-                    const index = text.toLowerCase().indexOf(q.toLowerCase());
-                    if (index !== -1) {
-                        const range = doc.createRange();
-                        range.setStart(firstTextNode, index);
-                        range.setEnd(firstTextNode, index + q.length);
-                        if (typeof ePub.CFI !== 'undefined' && ePub.CFI.fromRange) {
-                            const preciseCfi = ePub.CFI.fromRange(range, cfiBase);
-                            const start = Math.max(0, index - 40);
-                            const excerpt = text.substring(start, index + 40);
-                            results.push({ cfi: preciseCfi, excerpt });
-                        } else {
-                            const excerpt = text.substring(Math.max(0, index - 40), index + 40);
-                            results.push({ cfi: cfiBase, excerpt });
-                        }
-                    }
-                }
-            } catch (err) { /* ignore */ }
-            item.unload();
-            done++;
-            if (done === spine.length) renderSearchResults(results);
-        });
-    });
-};
-
-function renderSearchResults(results) {
-    const container = document.getElementById("searchResults");
-    container.innerHTML = `<div class="searchHeader">🔍 Results <button onclick="document.getElementById('searchResults').style.display='none'">✕</button></div>`;
-    if (results.length === 0) {
-        container.innerHTML += "<p>😕 No results found.</p>";
+// ---------- BOOKMARKS ----------
+function updateBookmarkPanel() {
+    const container = document.getElementById("bookmarkContent");
+    if (!currentBookKey) {
+        container.innerHTML = "<p>📭 Load an EPUB first.</p>";
         return;
     }
-    results.forEach(r => {
+    let data = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
+    if (data.length === 0) {
+        container.innerHTML = "<p>🔖 No bookmarks. Tap <strong>Add</strong> while reading.</p>";
+        return;
+    }
+    container.innerHTML = "";
+    data.forEach((cfi, idx) => {
         const div = document.createElement("div");
-        div.className = "resultItem";
-        div.textContent = "… " + r.excerpt + " …";
-        div.onclick = () => {
-            rendition.display(r.cfi);
-            container.style.display = "none";
+        div.className = "bookmark-item";
+        const titleSpan = document.createElement("span");
+        titleSpan.innerText = `📍 Bookmark ${idx+1}`;
+        titleSpan.style.cursor = "pointer";
+        titleSpan.style.flex = "1";
+        titleSpan.onclick = () => { rendition.display(cfi); closeAllPanels(); };
+        const delBtn = document.createElement("button");
+        delBtn.innerText = "✕";
+        delBtn.style.background = "#ef4444";
+        delBtn.style.padding = "6px 12px";
+        delBtn.onclick = (e) => {
+            e.stopPropagation();
+            let newData = data.filter(b => b !== cfi);
+            localStorage.setItem(currentBookKey, JSON.stringify(newData));
+            updateBookmarkPanel();
+            showToast("🗑️ Bookmark removed");
         };
+        div.appendChild(titleSpan);
+        div.appendChild(delBtn);
         container.appendChild(div);
     });
 }
 
-// ---------- DICTIONARY ----------
-function enableSelection() {
+function addCurrentBookmark() {
+    if (!rendition || !currentBookKey) { showToast("Load a book first"); return; }
+    const loc = rendition.currentLocation();
+    if (!loc || !loc.start) return;
+    const cfi = loc.start.cfi;
+    let bookmarks = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
+    if (!bookmarks.includes(cfi)) {
+        bookmarks.push(cfi);
+        localStorage.setItem(currentBookKey, JSON.stringify(bookmarks));
+        updateBookmarkPanel();
+        showToast("✅ Bookmark saved");
+    } else {
+        showToast("📌 Already bookmarked");
+    }
+}
+
+function deleteBookmarkByCfi(cfi) { /* used via inline but better update */ }
+
+// ---------- SEARCH (using epub.js built-in) ----------
+async function performSearch() {
+    const query = document.getElementById("searchInput").value.trim();
+    if (!query || !book) { showToast("Enter search term & load EPUB"); return; }
+    searchResultsDiv.style.display = "flex";
+    searchResultsDiv.innerHTML = `<div class="searchHeader">🔍 Results for "${escapeHtml(query)}"<button id="closeSearchBtn" style="background:none; color:white; font-size:20px;">✕</button></div><div style="padding:20px; text-align:center;">Searching ...</div>`;
+    document.getElementById("closeSearchBtn")?.addEventListener("click", () => { searchResultsDiv.style.display = "none"; });
+    
+    try {
+        const results = await book.search(query);
+        if (!results || results.length === 0) {
+            searchResultsDiv.innerHTML = `<div class="searchHeader">🔍 No matches</div><div style="padding:16px">😕 No results for "${escapeHtml(query)}"</div><button style="margin:12px auto; display:block;" onclick="document.getElementById('searchResults').style.display='none'">Close</button>`;
+            return;
+        }
+        const resultContainer = document.createElement("div");
+        results.forEach(res => {
+            const excerpt = res.excerpt || (res.text ? res.text.substring(0, 120) : "Match found");
+            const cfi = res.cfi;
+            const itemDiv = document.createElement("div");
+            itemDiv.className = "resultItem";
+            itemDiv.innerHTML = `📖 ${escapeHtml(excerpt.length > 100 ? excerpt.substring(0,100)+"…" : excerpt)}`;
+            itemDiv.onclick = () => {
+                if (cfi) {
+                    rendition.display(cfi);
+                    searchResultsDiv.style.display = "none";
+                } else {
+                    showToast("Cannot navigate to this result");
+                }
+            };
+            resultContainer.appendChild(itemDiv);
+        });
+        searchResultsDiv.innerHTML = "";
+        const header = document.createElement("div");
+        header.className = "searchHeader";
+        header.innerHTML = `🔍 ${results.length} result(s)<button id="closeSearchBtn2" style="background:none; color:white;">✕</button>`;
+        searchResultsDiv.appendChild(header);
+        searchResultsDiv.appendChild(resultContainer);
+        document.getElementById("closeSearchBtn2")?.addEventListener("click", () => { searchResultsDiv.style.display = "none"; });
+    } catch(err) {
+        console.warn(err);
+        searchResultsDiv.innerHTML = `<div class="searchHeader">⚠️ Error</div><div>Search failed. Try again.</div><button onclick="document.getElementById('searchResults').style.display='none'">Close</button>`;
+    }
+}
+
+// Helper
+function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+// ---------- PROGRESS & LOCATIONS ----------
+function setupProgressAndLocation() {
+    if (!book) return;
+    book.ready.then(() => book.locations.generate(1800)).then(() => {
+        const total = book.locations.total;
+        rendition.on("relocated", (loc) => {
+            const current = book.locations.locationFromCfi(loc.start.cfi);
+            if (current && total) {
+                document.getElementById("pageInfo").innerText = `${Math.min(current, total)} / ${total}`;
+                document.getElementById("progressBar").style.width = ((current / total) * 100) + "%";
+            }
+        });
+    }).catch(e => console.log("location err", e));
+}
+
+// ---------- DICTIONARY (selection) ----------
+let selectedWord = "";
+function enableWordSelection() {
+    if (!rendition) return;
     rendition.on("selected", (cfiRange, contents) => {
-        selectedWord = contents.window.getSelection().toString().trim();
+        const selection = contents.window.getSelection();
+        if (selection && selection.toString().trim()) {
+            selectedWord = selection.toString().trim();
+        }
     });
 }
 document.getElementById("dictionaryBtn").onclick = () => {
-    if (!selectedWord) { alert("👆 Select a word first, then tap Dictionary."); return; }
-    const popup = document.getElementById("popup");
-    popup.style.display = "block";
-    popup.innerHTML = "🔎 Loading definition...";
-    fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + selectedWord)
+    if (!selectedWord) { showToast("👆 Select a word first (tap & hold)"); return; }
+    popupDiv.style.display = "block";
+    popupDiv.innerHTML = "📖 Loading definition...";
+    fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(selectedWord)}`)
         .then(r => r.json())
         .then(data => {
-            if (data.title) { 
-                popup.innerHTML = `❌ No definition found for "<b>${selectedWord}</b>".<br><br><button onclick='document.getElementById("popup").style.display="none"'>Close</button>`; 
-                return; 
-            }
-            const entry = data[0];
-            const meaning = entry.meanings?.[0];
-            const definition = meaning?.definitions?.[0]?.definition || "No definition available.";
-            popup.innerHTML = `<b>📖 ${selectedWord}</b><br><br><i>${meaning?.partOfSpeech || ""}</i><br><br>${definition}<br><br><button onclick='document.getElementById("popup").style.display="none"'>Close</button>`;
+            if (data.title) throw new Error("not found");
+            const def = data[0]?.meanings?.[0]?.definitions?.[0]?.definition || "No definition";
+            popupDiv.innerHTML = `<b>📘 ${selectedWord}</b><br><i>${data[0]?.meanings?.[0]?.partOfSpeech || ""}</i><br><br>${def}<br><br><button style="margin-top:12px;" onclick="document.getElementById('popup').style.display='none'">Close</button>`;
         })
         .catch(() => {
-            popup.innerHTML = "⚠️ Network error. Check your connection.<br><br><button onclick='document.getElementById(\"popup\").style.display=\"none\"'>Close</button>";
+            popupDiv.innerHTML = `❌ No definition for "${selectedWord}".<br><br><button onclick="document.getElementById('popup').style.display='none'">Got it</button>`;
         });
 };
 
-// ---------- BOOKMARKS ----------
-document.getElementById("addBookmarkBtn").onclick = () => {
-    const loc = rendition.currentLocation();
-    if (!loc) return;
-    const cfi = loc.start.cfi;
-    let data = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
-    if (!data.includes(cfi)) {
-        data.push(cfi);
-        localStorage.setItem(currentBookKey, JSON.stringify(data));
+// Helper UI
+function showToast(msg) {
+    popupDiv.innerHTML = `${msg}<br><button onclick="document.getElementById('popup').style.display='none'">OK</button>`;
+    popupDiv.style.display = "block";
+    setTimeout(() => { if(popupDiv.style.display !== 'none') popupDiv.style.display = 'none'; }, 2500);
+}
+function closeAllPanels() {
+    document.getElementById("tocPanel").classList.remove("open");
+    document.getElementById("bookmarkPanel").classList.remove("open");
+}
+
+// ---------- LOAD EPUB ----------
+document.getElementById("fileInput").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (rendition) rendition.destroy();
+    
+    book = ePub(file);
+    rendition = book.renderTo("viewer", { width: "100%", height: "100%", allowScriptedContent: true });
+    
+    registerThemes();
+    attachThemeHook();
+    setTheme(currentTheme);
+    rendition.display();
+    
+    // essential mobile enhancements
+    attachHeaderToggleToIframe();
+    initSwipeDetection();
+    enableWordSelection();
+    setupProgressAndLocation();
+    
+    // TOC building after nav ready
+    buildTOCFromNav();
+    
+    // set bookmarks ID
+    book.ready.then(() => {
+        const id = book.package.metadata.identifier || file.name + Date.now();
+        currentBookKey = "epub-bookmarks-" + id.replace(/[^a-z0-9]/gi, '_');
         updateBookmarkPanel();
-        showPopup("✅ Bookmark added!");
-    } else {
-        showPopup("📌 Already bookmarked");
-    }
+    });
+    
+    // font sync
+    rendition.themes.fontSize(currentFontPercent + "%");
+});
+
+// Font controls
+document.getElementById("fontPlus").onclick = () => {
+    currentFontPercent = Math.min(currentFontPercent + 10, 200);
+    if(rendition) rendition.themes.fontSize(currentFontPercent + "%");
 };
-document.getElementById("bookmarkPanelBtn").onclick = () => {
-    togglePanel("bookmarkPanel");
-    updateBookmarkPanel();
+document.getElementById("fontMinus").onclick = () => {
+    currentFontPercent = Math.max(currentFontPercent - 10, 70);
+    if(rendition) rendition.themes.fontSize(currentFontPercent + "%");
 };
-function updateBookmarkPanel() {
-    const content = document.getElementById("bookmarkContent");
-    content.innerHTML = "";
-    let data = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
-    if (data.length === 0) {
-        content.innerHTML = "<p>📭 No bookmarks yet.<br><br>Tap <b>🔖 Add</b> while reading to save your place.</p>";
-        return;
-    }
-    data.forEach((cfi, i) => {
-        const row = document.createElement("div");
-        row.className = "item";
-        row.innerHTML = `<span>🔖 Bookmark ${i + 1}</span><button onclick="deleteBookmark('${cfi}')">✕</button>`;
-        row.querySelector("span").onclick = () => { rendition.display(cfi); togglePanel("bookmarkPanel"); };
-        content.appendChild(row);
+
+// Navigation
+document.getElementById("prevBtn").onclick = () => rendition && rendition.prev();
+document.getElementById("nextBtn").onclick = () => rendition && rendition.next();
+
+// Theme select
+document.getElementById("themeSelect").onchange = e => setTheme(e.target.value);
+
+// TOC panel
+document.getElementById("tocBtn").onclick = () => { document.getElementById("tocPanel").classList.toggle("open"); closeAllPanelsExcept("tocPanel"); };
+document.getElementById("closeTocBtn").onclick = () => document.getElementById("tocPanel").classList.remove("open");
+
+// Bookmarks panel
+document.getElementById("bookmarkPanelBtn").onclick = () => { updateBookmarkPanel(); document.getElementById("bookmarkPanel").classList.toggle("open"); closeAllPanelsExcept("bookmarkPanel"); };
+document.getElementById("closeBookmarkBtn").onclick = () => document.getElementById("bookmarkPanel").classList.remove("open");
+document.getElementById("addBookmarkBtn").onclick = addCurrentBookmark;
+
+function closeAllPanelsExcept(keepId) {
+    if(keepId !== "tocPanel") document.getElementById("tocPanel").classList.remove("open");
+    if(keepId !== "bookmarkPanel") document.getElementById("bookmarkPanel").classList.remove("open");
+}
+
+// Search button
+document.getElementById("searchBtn").onclick = () => performSearch();
+
+// Close popup when tapping outside? simple: click anywhere on popup close button already.
+document.getElementById("popup").addEventListener("click", (e) => { if(e.target.tagName === "BUTTON") popupDiv.style.display = "none"; });
+
+// PWA service worker (optional)
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(e => console.log("SW skip"));
     });
 }
-function deleteBookmark(cfi) {
-    let data = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
-    data = data.filter(b => b !== cfi);
-    localStorage.setItem(currentBookKey, JSON.stringify(data));
-    updateBookmarkPanel();
-}
 
-// ---------- POPUP HELPER ----------
-function showPopup(msg) {
-    const popup = document.getElementById("popup");
-    popup.innerHTML = msg + `<br><br><button onclick="document.getElementById('popup').style.display='none'">OK</button>`;
-    popup.style.display = "block";
-    setTimeout(() => { if(popup.style.display !== 'none') popup.style.display = 'none'; }, 3000);
-}
-
-// ── PWA: Service Worker Registration ─────────────────────────────
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => console.log('✅ SW registered:', reg.scope))
-      .catch(err => console.warn('⚠️ SW failed:', err));
-  });
-}
-
-// ── PWA: BeforeInstallPrompt (for better UX) ─────────────────────
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  console.log('💡 PWA install prompt available');
-});
+// initial hide header hint
+setTimeout(() => {
+    if(!localStorage.getItem("swipeHintShown")){
+        localStorage.setItem("swipeHintShown","1");
+        showToast("💡 Tap on text area to hide header • Swipe ← → to turn pages");
+    }
+}, 1000);
 </script>
 </body>
 </html>
